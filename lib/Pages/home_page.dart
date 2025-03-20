@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:to_do_app/Utils/dialog_box.dart';
 import 'package:to_do_app/Utils/todo_tile.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:to_do_app/main.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,8 +24,33 @@ final _controller = TextEditingController();
     setState(() {
       toDoList[index][1] = !toDoList[index][1];
     });
+    if (!value){
+      scheduleNotification(toDoList[index][0]);
+    }
 
   }
+
+Future<void> scheduleNotification(String taskName) async {
+  var androidPlatformChannelSpecifics = AndroidNotificationDetails(
+    'your_channel_id',
+    'your_channel_name',
+    'your_channel_description',
+    importance: Importance.max,
+    priority: Priority.high,
+    ticker: 'ticker',
+  );
+  var iOSPlatformChannelSpecifics = IOSNotificationDetails(); // Correct class name
+  var platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics, iOS: iOSPlatformChannelSpecifics);
+  await flutterLocalNotificationsPlugin.show(
+    0,
+    'Incomplete Task',
+    'You have an incomplete task: $taskName',
+    platformChannelSpecifics,
+    payload: 'item x',
+  );
+}
+
   // save new task
 void saveNewTask(){
     setState(() {
