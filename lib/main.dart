@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:to_do_app/Pages/home_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:to_do_app/Utils/noti_service.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  var initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-  var initializationSettingsDarwin = DarwinInitializationSettings();
-  var initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid, iOS: initializationSettingsDarwin
-  );
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  NotiService().initNotification();
+
   runApp(const MyApp());
 }
 
