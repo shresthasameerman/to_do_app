@@ -5,35 +5,31 @@ class NotiService {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
-  //Initialized
+  // Initialized
   Future<void> initNotification() async {
-    if (_isInitialized) return; //prevent reinitialization
-
+    if (_isInitialized) return; // prevent reinitialization
     const initSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
-
     const initSettingsIOS = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-
     const initSettings = InitializationSettings(
       android: initSettingsAndroid,
       iOS: initSettingsIOS,
     );
-
     await notificationsPlugin.initialize(initSettings);
     _isInitialized = true;
   }
 
-  //Notification Details setup
+  // Notification Details setup
   NotificationDetails notificationDetails() {
     return const NotificationDetails(
       android: AndroidNotificationDetails(
-        'daily_channel_id',
-        'daily Notifications',
-        channelDescription: 'Daily Notification Channel',
+        'task_reminder_channel_id', // Changed channel ID
+        'Task Reminders', // Changed channel name
+        channelDescription: 'Task Reminder Channel',
         importance: Importance.max,
         priority: Priority.high,
       ),
@@ -41,7 +37,7 @@ class NotiService {
     );
   }
 
-  //Show Notifications
+  // Show Notifications
   Future<void> showNotification({
     int id = 0,
     String? title,
