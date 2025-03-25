@@ -190,19 +190,20 @@ class _HomePageState extends State<HomePage> {
               child: CupertinoPicker(
                 itemExtent: 50,
                 onSelectedItemChanged: (int index) {
-                  selectedInterval = [1, 5, 10, 15, 30, 60][index];
+                  selectedInterval = [1, 5, 10, 15, 30, 60, 120, 180][index];
                 },
-                children: [
-                  const Center(child: Text('1 min')),
-                  const Center(child: Text('5 mins')),
-                  const Center(child: Text('10 mins')),
-                  const Center(child: Text('15 mins')),
-                  const Center(child: Text('30 mins')),
-                  const Center(child: Text('60 mins')),
+                children: const [
+                  Center(child: Text('1 min')),
+                  Center(child: Text('5 mins')),
+                  Center(child: Text('10 mins')),
+                  Center(child: Text('15 mins')),
+                  Center(child: Text('30 mins')),
+                  Center(child: Text('60 mins (1 hr)')),
+                  Center(child: Text('120 mins (2 hrs)')),
+                  Center(child: Text('180 mins (3 hrs)')),
                 ],
-                // Set initial selection based on current interval
                 scrollController: FixedExtentScrollController(
-                  initialItem: [1, 5, 10, 15, 30, 60].indexOf(_reminderIntervalMinutes),
+                  initialItem: [1, 5, 10, 15, 30, 60, 120, 180].indexOf(_reminderIntervalMinutes),
                 ),
               ),
             ),
