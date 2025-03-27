@@ -4,6 +4,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 class ToDoTile extends StatelessWidget {
   final String taskName;
   final bool taskCompleted;
+  final Color priorityColor;
   final Function(bool?)? onChanged;
   final Function(BuildContext)? deleteFunction;
 
@@ -11,6 +12,7 @@ class ToDoTile extends StatelessWidget {
     super.key,
     required this.taskName,
     required this.taskCompleted,
+    required this.priorityColor,
     required this.onChanged,
     required this.deleteFunction,
   });
@@ -18,38 +20,102 @@ class ToDoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 25.0, right: 25.0, top: 25.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Slidable(
-        key: const ValueKey(0),  // Add a key for better performance
         endActionPane: ActionPane(
           motion: const StretchMotion(),
           children: [
             SlidableAction(
               onPressed: deleteFunction,
               icon: Icons.delete,
-              backgroundColor: Colors.grey.shade800,
+              backgroundColor: Colors.red.shade300,
               borderRadius: BorderRadius.circular(12),
-            ),
+            )
           ],
         ),
         child: Container(
-          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Checkbox(value: taskCompleted, onChanged: onChanged),
-              Text(
-                taskName,
-                style: TextStyle(
-                  decoration: taskCompleted
-                      ? TextDecoration.lineThrough
-                      : TextDecoration.none,
-                ),
+            gradient: LinearGradient(
+              colors: [
+                priorityColor.withOpacity(0.2),
+                Colors.grey[850]!,
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                spreadRadius: 1,
+                blurRadius: 5,
+                offset: const Offset(0, 3),
               ),
             ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Checkbox with a more pronounced design
+                Transform.scale(
+                  scale: 1.2,
+                  child: Checkbox(
+                    value: taskCompleted,
+                    onChanged: onChanged,
+                    activeColor: priorityColor,
+                    checkColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    side: BorderSide(
+                      color: priorityColor,
+                      width: 2,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Priority indicator
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: priorityColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: priorityColor.withOpacity(0.5),
+                        spreadRadius: 2,
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Task text
+                Expanded(
+                  child: Text(
+                    taskName,
+                    style: TextStyle(
+                      decoration: taskCompleted
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      color: taskCompleted
+                          ? Colors.grey
+                          : Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
