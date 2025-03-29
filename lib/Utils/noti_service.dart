@@ -5,7 +5,7 @@ class NotiService {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
-  // Initialized
+  // Initialize notification service
   Future<void> initNotification() async {
     if (_isInitialized) return; // prevent reinitialization
     const initSettingsAndroid =
@@ -21,6 +21,21 @@ class NotiService {
     );
     await notificationsPlugin.initialize(initSettings);
     _isInitialized = true;
+  }
+
+  // Request notification permissions (especially for iOS)
+  Future<void> requestPermission() async {
+    final iosDetails = await notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    if (iosDetails != null) {
+      // Handle any specific logic for iOS permissions here if needed
+    }
   }
 
   // Notification Details setup

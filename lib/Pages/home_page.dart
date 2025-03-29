@@ -60,6 +60,41 @@ class _HomePageState extends State<HomePage> {
   int _reminderIntervalMinutes = 5;
   bool _isTimerRunning = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showNotificationPrompt();
+    });
+  }
+
+  // Method to show the notification prompt
+  void _showNotificationPrompt() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Enable Notifications"),
+          content: const Text(
+              "To get timely reminders, please enable notification services."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _notiService.requestPermission();
+                Navigator.of(context).pop();
+              },
+              child: const Text("Enable"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Method to set reminder interval
   void _setReminderInterval() {
     final List<int> reminderIntervals = [1, 5, 10, 15, 30, 60, 120, 180];
