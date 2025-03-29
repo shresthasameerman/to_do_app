@@ -60,42 +60,6 @@ class _HomePageState extends State<HomePage> {
   int _reminderIntervalMinutes = 5;
   bool _isTimerRunning = false;
 
-  // Method to show all incomplete tasks
-  void showAllIncompleteTasks() {
-    List incompleteTasks = toDoList.where((task) => task[1] == false).toList();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Incomplete Tasks'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: incompleteTasks.map((task) {
-                return Text(
-                  '${task[0]} (${task[2]}) - Priority: ${task[3].capitalize()}',
-                  style: TextStyle(
-                    color: Priority.values.firstWhere(
-                          (p) => p.name == task[3],
-                      orElse: () => Priority.low,
-                    ).color,
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   // Method to set reminder interval
   void _setReminderInterval() {
     final List<int> reminderIntervals = [1, 5, 10, 15, 30, 60, 120, 180];
@@ -269,11 +233,6 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Taskora'),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: showAllIncompleteTasks,
-            tooltip: 'Show incomplete tasks',
-          ),
           IconButton(
             icon: Icon(
               _isTimerRunning ? Icons.timer : Icons.timer_off,
