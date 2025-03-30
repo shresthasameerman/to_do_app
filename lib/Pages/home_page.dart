@@ -63,36 +63,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showNotificationPrompt();
-    });
-  }
-
-  // Method to show the notification prompt
-  void _showNotificationPrompt() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text("Enable Notifications"),
-          content: const Text(
-              "To get timely reminders, please enable notification services."),
-          actions: [
-            TextButton(
-              onPressed: () {
-                _notiService.requestPermission();
-                Navigator.of(context).pop();
-              },
-              child: const Text("Enable"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Cancel"),
-            ),
-          ],
-        );
-      },
-    );
+    // Removed the notification prompt call
   }
 
   // Method to set reminder interval
