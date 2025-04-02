@@ -2,11 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:to_do_app/Pages/home_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:to_do_app/Utils/noti_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hive
+  await Hive.initFlutter();
+
+  // Open the box
+  await Hive.openBox('mybox');
+
+  // Initialize notifications
   NotiService().initNotification();
 
   runApp(const MyApp());
@@ -15,14 +25,12 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: HomePage(),
+      home: const HomePage(),
       theme: ThemeData(primarySwatch: Colors.grey),
     );
-
   }
 }

@@ -7,6 +7,7 @@ class ToDoTile extends StatelessWidget {
   final Color priorityColor;
   final Function(bool?)? onChanged;
   final Function(BuildContext)? deleteFunction;
+  final bool isDarkMode;
 
   const ToDoTile({
     super.key,
@@ -15,6 +16,7 @@ class ToDoTile extends StatelessWidget {
     required this.priorityColor,
     required this.onChanged,
     required this.deleteFunction,
+    required this.isDarkMode,
   });
 
   @override
@@ -38,7 +40,7 @@ class ToDoTile extends StatelessWidget {
             gradient: LinearGradient(
               colors: [
                 priorityColor.withOpacity(0.2),
-                Colors.grey[850]!,
+                isDarkMode ? Colors.grey[850]! : Colors.grey[200]!,
               ],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
@@ -46,7 +48,7 @@ class ToDoTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withOpacity(isDarkMode ? 0.2 : 0.1),
                 spreadRadius: 1,
                 blurRadius: 5,
                 offset: const Offset(0, 3),
@@ -106,7 +108,7 @@ class ToDoTile extends StatelessWidget {
                           : TextDecoration.none,
                       color: taskCompleted
                           ? Colors.grey
-                          : Colors.white,
+                          : isDarkMode ? Colors.white : Colors.black,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 0.5,
