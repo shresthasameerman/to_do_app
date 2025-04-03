@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:to_do_app/Utils/dialog_box.dart';
 import 'package:to_do_app/Utils/noti_service.dart';
 import 'package:to_do_app/Utils/todo_tile.dart';
+import 'package:to_do_app/Pages/profile_page.dart';
 import 'dart:async';
 
 // Priority Enum
@@ -21,8 +22,8 @@ enum Priority {
   // Convert to/from string for Hive storage
   static Priority fromString(String priorityString) {
     return Priority.values.firstWhere(
-            (priority) => priority.name == priorityString,
-        orElse: () => Priority.low
+          (priority) => priority.name == priorityString,
+      orElse: () => Priority.low,
     );
   }
 }
@@ -43,65 +44,43 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _controller = TextEditingController();
-  String _selectedCategory = 'Work'; // Default category
-  Priority _selectedPriority = Priority.low; // Default priority
-  bool _isDarkMode = true; // Default to dark mode
-
-  // Reference the Hive box
+  String _selectedCategory = 'Work';
+  Priority _selectedPriority = Priority.low;
+  bool _isDarkMode = true;
   final _myBox = Hive.box('mybox');
-
-  // Task list - will be loaded from Hive
   List toDoList = [];
-
-  // Predefined categories
-  final List<String> categories = [
-    'Work',
-    'Study',
-    'Personal',
-    'Health/Exercise'
-  ];
-
-  // Predefined priorities
+  final List<String> categories = ['Work', 'Study', 'Personal', 'Health/Exc'];
   final List<Priority> priorities = Priority.values;
-
-  // Notification and timer variables
   final NotiService _notiService = NotiService();
-  Timer? _reminderTimer;
-  int _reminderIntervalMinutes = 5;
-  bool _isTimerRunning = false;
 
   @override
   void initState() {
     super.initState();
-
-    // Load data from Hive when the app starts
-    if (_myBox.get("TODOLIST") == null) {
-      // First time opening the app - create initial data
-      _createInitialData();
-    } else {
-      // Not the first time - load existing data
-      _loadData();
-    }
-
-    // Load theme preference
+    _initializeData();
     _loadThemePreference();
+    _notiService.initializeNotifications();
   }
 
-  // Create initial data when app is first used
+  void _initializeData() {
+    if (_myBox.get("TODOLIST") == null) {
+      _createInitialData();
+    } else {
+      _loadData();
+    }
+  }
+
   void _createInitialData() {
     toDoList = [
-      ["Watch tutorial", false, "Study", "low"],
-      ["Exercise", false, "Health/Exercise", "medium"],
+      ["Watch tutorial", false, "Study", "low", null],
+      ["Exercise", false, "Health/Exc", "medium", null],
     ];
     _myBox.put("TODOLIST", toDoList);
   }
 
-  // Load data from Hive
   void _loadData() {
     toDoList = _myBox.get("TODOLIST");
   }
 
-  // Load theme preference
   void _loadThemePreference() {
     final savedTheme = _myBox.get("THEME_MODE");
     if (savedTheme != null) {
@@ -111,140 +90,70 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Save theme preference
   void _saveThemePreference() {
     _myBox.put("THEME_MODE", _isDarkMode);
   }
 
-  // Toggle theme
   void _toggleTheme() {
     setState(() {
       _isDarkMode = !_isDarkMode;
       _saveThemePreference();
     });
-    Navigator.pop(context); // Close drawer after changing theme
+    Navigator.pop(context);
   }
 
-  // Update database after any changes
+  void _navigateToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfilePage()),
+    );
+  }
+
   void _updateDatabase() {
     _myBox.put("TODOLIST", toDoList);
-  }
-
-  // Method to set reminder interval
-  void _setReminderInterval() {
-    final List<int> reminderIntervals = [1, 5, 10, 15, 30, 60, 120, 180];
-    int selectedInterval = _reminderIntervalMinutes;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.white,
-          title: Text(
-            _isTimerRunning ? 'Reminder Interval' : 'Set Reminder Interval',
-            style: TextStyle(color: _isDarkMode ? Colors.white : Colors.black),
-          ),
-          content: SizedBox(
-            height: 200,
-            child: CupertinoPicker(
-              itemExtent: 32.0,
-              scrollController: FixedExtentScrollController(
-                  initialItem: reminderIntervals.indexOf(selectedInterval)
-              ),
-              onSelectedItemChanged: (int index) {
-                selectedInterval = reminderIntervals[index];
-              },
-              children: reminderIntervals.map((interval) {
-                return Center(
-                  child: Text(
-                    interval < 60
-                        ? '$interval min'
-                        : '${interval ~/ 60} hr${interval ~/ 60 == 1 ? '' : 's'}',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: _isDarkMode ? Colors.white : Colors.black,
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-
-                if (!_isTimerRunning) {
-                  setState(() {
-                    _reminderIntervalMinutes = selectedInterval;
-                    _isTimerRunning = true;
-                  });
-
-                  _reminderTimer = Timer.periodic(
-                      Duration(minutes: _reminderIntervalMinutes),
-                          (_) {
-                        _notiService.showNotification(
-                            title: 'Taskora Reminder',
-                            body: 'You have ${toDoList.where((task) => task[1] == false).length} incomplete tasks'
-                        );
-                      }
-                  );
-                } else {
-                  setState(() {
-                    _isTimerRunning = false;
-                    _reminderTimer?.cancel();
-                  });
-                }
-              },
-              child: Text(
-                _isTimerRunning ? 'Stop' : 'Start',
-                style: TextStyle(color: Colors.blue),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: TextStyle(color: Colors.blue),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void checkBoxChanged(bool value, int index) {
     setState(() {
       toDoList[index][1] = value;
-      _updateDatabase(); // Save changes to Hive
+      _updateDatabase();
     });
   }
 
-  void saveNewTask() {
+  void saveNewTask(DateTime? reminderTime) {
     setState(() {
       toDoList.add([
         _controller.text,
         false,
         _selectedCategory,
-        _selectedPriority.name
+        _selectedPriority.name,
+        reminderTime,
       ]);
       _controller.clear();
-      _updateDatabase(); // Save changes to Hive
+      _updateDatabase();
+
+      if (reminderTime != null) {
+        _notiService.scheduleNotification(
+          id: toDoList.length - 1,
+          title: 'Task Reminder',
+          body: _controller.text,
+          scheduledTime: reminderTime,
+        );
+      }
     });
     Navigator.of(context).pop();
   }
 
   void createNewTask() {
-    // Reset selected priority to default
     _selectedPriority = Priority.low;
+    DateTime? reminderTime;
 
     showDialog(
       context: context,
       builder: (context) {
         return DialogBox(
           controller: _controller,
-          onSave: saveNewTask,
+          onSave: () => saveNewTask(reminderTime),
           onCancel: () => Navigator.of(context).pop(),
           categories: categories,
           selectedCategory: _selectedCategory,
@@ -253,7 +162,6 @@ class _HomePageState extends State<HomePage> {
               _selectedCategory = newValue!;
             });
           },
-          // Add priority selection
           priorities: priorities.map((p) => p.name).toList(),
           selectedPriority: _selectedPriority.name,
           onPriorityChanged: (String? newValue) {
@@ -264,34 +172,61 @@ class _HomePageState extends State<HomePage> {
               );
             });
           },
+          reminderTime: null,
+          onReminderTimeChanged: (DateTime? newTime) {
+            reminderTime = newTime;
+          },
         );
       },
     );
   }
 
   void deleteTask(int index) {
+    _notiService.cancelNotification(index);
     setState(() {
       toDoList.removeAt(index);
-      _updateDatabase(); // Save changes to Hive
+      _updateDatabase();
+    });
+  }
+
+  void editTask(int index, String newText, Color newColor, DateTime? newReminderTime) {
+    setState(() {
+      Priority newPriority = Priority.values.firstWhere(
+            (p) => p.color == newColor,
+        orElse: () => Priority.low,
+      );
+
+      toDoList[index][0] = newText;
+      toDoList[index][3] = newPriority.name;
+      toDoList[index][4] = newReminderTime;
+      _updateDatabase();
+
+      if (newReminderTime != null) {
+        _notiService.cancelNotification(index);
+        _notiService.scheduleNotification(
+          id: index,
+          title: 'Task Reminder',
+          body: newText,
+          scheduledTime: newReminderTime,
+        );
+      } else {
+        _notiService.cancelNotification(index);
+      }
     });
   }
 
   @override
   void dispose() {
-    _reminderTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Get the theme based on mode
     final ThemeData themeData = _isDarkMode
         ? ThemeData.dark().copyWith(
       primaryColor: Colors.blue,
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.grey[900],
-      ),
+      appBarTheme: AppBarTheme(backgroundColor: Colors.grey[900]),
       scaffoldBackgroundColor: Colors.grey[900],
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: Colors.blue,
@@ -299,129 +234,30 @@ class _HomePageState extends State<HomePage> {
     )
         : ThemeData.light().copyWith(
       primaryColor: Colors.blue,
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.blue,
-      ),
+      appBarTheme: AppBarTheme(backgroundColor: Colors.blue),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: Colors.blue,
       ),
     );
 
-    // Sort tasks within each category by priority and completion
+    // Organize tasks by category
     Map<String, List> categorizedTasks = {};
     for (var category in categories) {
-      List categoryTasks = toDoList.where((task) => task[2] == category).toList();
-
-      // Sort tasks: uncompleted high priority first, then medium, then low
-      categoryTasks.sort((a, b) {
-        // Define priority order
-        Map<String, int> priorityOrder = {
-          'high': 0,
-          'medium': 1,
-          'low': 2
-        };
-
-        // First, sort by completion status (incomplete first)
-        if (a[1] != b[1]) {
-          return a[1] ? 1 : -1;
-        }
-
-        // Then sort by priority
-        return priorityOrder[a[3]]!.compareTo(priorityOrder[b[3]]!);
-      });
-
-      categorizedTasks[category] = categoryTasks;
+      categorizedTasks[category] = toDoList.where((task) => task[2] == category).toList();
     }
 
     return Theme(
       data: themeData,
       child: Scaffold(
-        endDrawer: Drawer(
-          child: Container(
-            color: _isDarkMode ? Colors.grey[850] : Colors.white,
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                DrawerHeader(
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                  ),
-                  child: Text(
-                    'Taskora Menu',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                    ),
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(
-                    Icons.home,
-                    color: _isDarkMode ? Colors.white : Colors.black,
-                  ),
-                  title: Text(
-                    'Home',
-                    style: TextStyle(
-                      color: _isDarkMode ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                ),
-                ListTile(
-                  leading: Icon(
-                    _isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                    color: _isDarkMode ? Colors.white : Colors.black,
-                  ),
-                  title: Text(
-                    _isDarkMode ? 'Light Mode' : 'Dark Mode',
-                    style: TextStyle(
-                      color: _isDarkMode ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  onTap: _toggleTheme,
-                ),
-                ListTile(
-                  leading: Icon(
-                    Icons.settings,
-                    color: _isDarkMode ? Colors.white : Colors.black,
-                  ),
-                  title: Text(
-                    'Settings',
-                    style: TextStyle(
-                      color: _isDarkMode ? Colors.white : Colors.black,
-                    ),
-                  ),
-                  onTap: () {
-                    // Navigate to settings
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
+        endDrawer: _buildDrawer(),
         appBar: AppBar(
           title: const Text('Taskora'),
           elevation: 0,
           actions: [
-            IconButton(
-              icon: Icon(
-                _isTimerRunning ? Icons.timer : Icons.timer_off,
-                color: _isTimerRunning ? Colors.green : _isDarkMode ? Colors.grey : Colors.white,
-              ),
-              onPressed: _setReminderInterval,
-              tooltip: _isTimerRunning
-                  ? 'Timer Running (every $_reminderIntervalMinutes min)'
-                  : 'Set reminder interval',
-            ),
             Builder(
               builder: (context) => IconButton(
-                icon: Icon(Icons.menu),
-                onPressed: () {
-                  Scaffold.of(context).openEndDrawer();
-                },
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openEndDrawer(),
                 tooltip: 'Menu',
               ),
             ),
@@ -431,61 +267,159 @@ class _HomePageState extends State<HomePage> {
           onPressed: createNewTask,
           child: const Icon(Icons.add),
         ),
-        body: Column(
+        body: _buildTaskView(categorizedTasks),
+      ),
+    );
+  }
+
+  Widget _buildDrawer() {
+    return Drawer(
+      child: Container(
+        color: _isDarkMode ? Colors.grey[850] : Colors.white,
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            if (_isTimerRunning)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  'Reminder active: Every $_reminderIntervalMinutes minute${_reminderIntervalMinutes == 1 ? '' : 's'}',
-                  style: const TextStyle(color: Colors.green),
-                ),
-              ),
-            Expanded(
-              child: DefaultTabController(
-                length: categories.length,
-                child: Column(
-                  children: [
-                    TabBar(
-                      isScrollable: true,
-                      tabs: categories.map((category) => Tab(text: category)).toList(),
-                      labelColor: _isDarkMode ? Colors.white : Colors.blue,
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        children: categories.map((category) {
-                          List categoryTasks = categorizedTasks[category]!;
-                          return ListView.builder(
-                            itemCount: categoryTasks.length,
-                            itemBuilder: (context, index) {
-                              return ToDoTile(
-                                taskName: categoryTasks[index][0],
-                                taskCompleted: categoryTasks[index][1],
-                                priorityColor: Priority.values.firstWhere(
-                                      (p) => p.name == categoryTasks[index][3],
-                                  orElse: () => Priority.low,
-                                ).color,
-                                onChanged: (value) {
-                                  int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                                  checkBoxChanged(value ?? false, originalIndex);
-                                },
-                                deleteFunction: (context) {
-                                  int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                                  deleteTask(originalIndex);
-                                },
-                                isDarkMode: _isDarkMode, // Add this line
-                              );
-                            },
-                          );
-                        }).toList(),
+            Container(
+              padding: const EdgeInsets.only(top: 50, bottom: 20),
+              decoration: const BoxDecoration(color: Colors.blue),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: _navigateToProfile,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: const ClipOval(
+                        child: Icon(
+                          Icons.person,
+                          size: 70,
+                          color: Colors.blue,
+                        ),
                       ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 15),
+                  const Text(
+                    'User Profile',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Tap to view profile',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.home,
+                color: _isDarkMode ? Colors.white : Colors.black,
+              ),
+              title: Text(
+                'Home',
+                style: TextStyle(
+                  color: _isDarkMode ? Colors.white : Colors.black,
                 ),
               ),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: Icon(
+                _isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                color: _isDarkMode ? Colors.white : Colors.black,
+              ),
+              title: Text(
+                _isDarkMode ? 'Light Mode' : 'Dark Mode',
+                style: TextStyle(
+                  color: _isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              onTap: _toggleTheme,
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTaskView(Map<String, List> categorizedTasks) {
+    return DefaultTabController(
+      length: categories.length,
+      child: Column(
+        children: [
+          Material(
+            color: _isDarkMode ? Colors.grey[900] : Colors.white,
+            child: TabBar(
+              isScrollable: true,
+              indicatorColor: Colors.blue,
+              labelColor: _isDarkMode ? Colors.white : Colors.blue,
+              unselectedLabelColor: _isDarkMode ? Colors.grey : Colors.grey[700],
+              tabs: categories.map((category) => Tab(text: category)).toList(),
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              children: categories.map((category) {
+                final categoryTasks = categorizedTasks[category] ?? [];
+                return categoryTasks.isEmpty
+                    ? Center(
+                  child: Text(
+                    'No tasks in this category',
+                    style: TextStyle(
+                      color: _isDarkMode ? Colors.white54 : Colors.black54,
+                    ),
+                  ),
+                )
+                    : ListView.builder(
+                  itemCount: categoryTasks.length,
+                  itemBuilder: (context, index) {
+                    return ToDoTile(
+                      taskName: categoryTasks[index][0],
+                      taskCompleted: categoryTasks[index][1],
+                      priorityColor: Priority.values.firstWhere(
+                            (p) => p.name == categoryTasks[index][3],
+                        orElse: () => Priority.low,
+                      ).color,
+                      onChanged: (value) {
+                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
+                        checkBoxChanged(value ?? false, originalIndex);
+                      },
+                      deleteFunction: (context) {
+                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
+                        deleteTask(originalIndex);
+                      },
+                      isDarkMode: _isDarkMode,
+                      onEdit: (newText, newColor, newReminderTime) {
+                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
+                        editTask(originalIndex, newText, newColor, newReminderTime);
+                      },
+                      reminderTime: categoryTasks[index][4],
+                    );
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
   }

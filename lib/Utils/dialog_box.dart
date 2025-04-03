@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class DialogBox extends StatelessWidget {
   final TextEditingController controller;
@@ -7,11 +8,11 @@ class DialogBox extends StatelessWidget {
   final List<String> categories;
   final String selectedCategory;
   final void Function(String?) onCategoryChanged;
-
-  // New parameters for priority
   final List<String> priorities;
   final String selectedPriority;
   final void Function(String?) onPriorityChanged;
+  final DateTime? reminderTime;
+  final Function(DateTime?) onReminderTimeChanged;
 
   const DialogBox({
     super.key,
@@ -21,10 +22,11 @@ class DialogBox extends StatelessWidget {
     required this.categories,
     required this.selectedCategory,
     required this.onCategoryChanged,
-    // New required parameters
     required this.priorities,
     required this.selectedPriority,
     required this.onPriorityChanged,
+    required this.reminderTime,
+    required this.onReminderTimeChanged,
   });
 
   @override
@@ -32,7 +34,7 @@ class DialogBox extends StatelessWidget {
     return AlertDialog(
       backgroundColor: Colors.grey[900],
       content: SizedBox(
-        height: 250, // Increased height to accommodate priority
+        height: 320, // Increased height to accommodate reminder
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -87,6 +89,52 @@ class DialogBox extends StatelessWidget {
                 labelText: 'Select Priority',
                 labelStyle: TextStyle(color: Colors.white),
               ),
+            ),
+
+            // Reminder Time
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    reminderTime == null
+                        ? 'No reminder set'
+                        : 'Reminder: ${DateFormat('MMM dd, yyyy - hh:mm a').format(reminderTime!)}',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.access_time, color: Colors.white),
+                  onPressed: () async {
+                    final DateTime? pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2100),
+                    );
+                    if (pickedDate != null) {
+                      final TimeOfDay? pickedTime = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (pickedTime != null) {
+                        final DateTime combinedDateTime = DateTime(
+                          pickedDate.year,
+                          pickedDate.month,
+                          pickedDate.day,
+                          pickedTime.hour,
+                          pickedTime.minute,
+                        );
+                        onReminderTimeChanged(combinedDateTime);
+                      }
+                    }
+                  },
+                ),
+                if (reminderTime != null)
+                  IconButton(
+                    icon: const Icon(Icons.clear, color: Colors.red),
+                    onPressed: () => onReminderTimeChanged(null),
+                  ),
+              ],
             ),
           ],
         ),

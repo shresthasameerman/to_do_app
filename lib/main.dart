@@ -17,7 +17,9 @@ void main() async {
   await Hive.openBox('mybox');
 
   // Initialize notifications
-  NotiService().initNotification();
+  final notiService = NotiService();
+  await notiService.initializeNotifications();
+  await notiService.requestPermissions(); // Optional: Request permissions if needed
 
   runApp(const MyApp());
 }

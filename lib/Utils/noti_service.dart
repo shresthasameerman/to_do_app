@@ -1,31 +1,53 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class NotiService {
-  final notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin notificationsPlugin =
+  FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
   // Initialize notification service
-  Future<void> initNotification() async {
-    if (_isInitialized) return; // prevent reinitialization
-    const initSettingsAndroid =
+  Future<void> initializeNotifications() async {
+    if (_isInitialized) return;
+
+    // Initialize timezone database
+    tz.initializeTimeZones();
+
+    const AndroidInitializationSettings initializationSettingsAndroid =
     AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettingsIOS = DarwinInitializationSettings(
+
+    const DarwinInitializationSettings initializationSettingsIOS =
+    DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-    const initSettings = InitializationSettings(
-      android: initSettingsAndroid,
-      iOS: initSettingsIOS,
+
+    const InitializationSettings initializationSettings =
+    InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
     );
-    await notificationsPlugin.initialize(initSettings);
+
+    await notificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        // Handle notification tap if needed
+      },
+    );
+
     _isInitialized = true;
   }
 
   // Request notification permissions (especially for iOS)
-  Future<void> requestPermission() async {
-    final iosDetails = await notificationsPlugin
+  Future<void> requestPermissions() async {
+    if (!_isInitialized) {
+      await initializeNotifications();
+    }
+
+    await notificationsPlugin
         .resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(
@@ -33,39 +55,73 @@ class NotiService {
       badge: true,
       sound: true,
     );
-    if (iosDetails != null) {
-      // Handle any specific logic for iOS permissions here if needed
-    }
   }
 
   // Notification Details setup
-  NotificationDetails notificationDetails() {
+  NotificationDetails _notificationDetails() {
     return const NotificationDetails(
       android: AndroidNotificationDetails(
-        'task_reminder_channel_id', // Changed channel ID
-        'Task Reminders', // Changed channel name
-        channelDescription: 'Task Reminder Channel',
+        'task_reminder_channel_id',
+        'Task Reminders',
+        channelDescription: 'Channel for task reminder notifications',
         importance: Importance.max,
         priority: Priority.high,
+        playSound: true,
       ),
-      iOS: DarwinNotificationDetails(),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
     );
   }
 
-  // Show Notifications
+  // Show immediate notification
   Future<void> showNotification({
-    int id = 0,
+    required int id,
     String? title,
     String? body,
   }) async {
     if (!_isInitialized) {
-      await initNotification();
+      await initializeNotifications();
     }
-    return notificationsPlugin.show(
+
+    await notificationsPlugin.show(
       id,
       title,
       body,
-      notificationDetails(),
+      _notificationDetails(),
     );
+  }
+
+  // Schedule a notification for a specific time
+  Future<void> scheduleNotification({
+    required int id,
+    String? title,
+    String? body,
+    required DateTime scheduledTime,
+  }) async {
+    if (!_isInitialized) {
+      await initializeNotifications();
+    }
+
+    await notificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tz.TZDateTime.from(scheduledTime, tz.local),
+      _notificationDetails(),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
+
+  // Cancel a specific notification
+  Future<void> cancelNotification(int id) async {
+    await notificationsPlugin.cancel(id);
+  }
+
+  // Cancel all notifications
+  Future<void> cancelAllNotifications() async {
+    await notificationsPlugin.cancelAll();
   }
 }
