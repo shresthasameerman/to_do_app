@@ -133,17 +133,17 @@ class _HomePageState extends State<HomePage> {
       _updateDatabase();
 
       if (reminderTime != null) {
-        _notiService.scheduleNotification(
-          id: toDoList.length - 1,
-          title: 'Task Reminder',
-          body: _controller.text,
+        final notiService = NotiService();
+        notiService.scheduleNotification(
+          id: toDoList.length - 1, // Use a unique ID
+          title: 'Task Reminder: ${_controller.text}',
+          body: 'This task is due now!',
           scheduledTime: reminderTime,
         );
       }
     });
     Navigator.of(context).pop();
   }
-
   void createNewTask() {
     _selectedPriority = Priority.low;
     DateTime? reminderTime;

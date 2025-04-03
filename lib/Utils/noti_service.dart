@@ -3,15 +3,14 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
 class NotiService {
+  static final NotiService _instance = NotiService._internal();
+  factory NotiService() => _instance;
+  NotiService._internal();
+
   final FlutterLocalNotificationsPlugin notificationsPlugin =
   FlutterLocalNotificationsPlugin();
-  bool _isInitialized = false;
-  bool get isInitialized => _isInitialized;
 
-  // Initialize notification service
   Future<void> initializeNotifications() async {
-    if (_isInitialized) return;
-
     // Initialize timezone database
     tz.initializeTimeZones();
 
@@ -25,8 +24,7 @@ class NotiService {
       requestSoundPermission: true,
     );
 
-    const InitializationSettings initializationSettings =
-    InitializationSettings(
+    const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
@@ -34,19 +32,12 @@ class NotiService {
     await notificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification tap if needed
+        // Handle notification tap
       },
     );
-
-    _isInitialized = true;
   }
 
-  // Request notification permissions (especially for iOS)
   Future<void> requestPermissions() async {
-    if (!_isInitialized) {
-      await initializeNotifications();
-    }
-
     await notificationsPlugin
         .resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>()
@@ -57,16 +48,17 @@ class NotiService {
     );
   }
 
-  // Notification Details setup
   NotificationDetails _notificationDetails() {
     return const NotificationDetails(
       android: AndroidNotificationDetails(
         'task_reminder_channel_id',
         'Task Reminders',
         channelDescription: 'Channel for task reminder notifications',
-        importance: Importance.max,
+        importance: Importance.high,
         priority: Priority.high,
         playSound: true,
+        enableVibration: true,
+        visibility: NotificationVisibility.public,
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
@@ -76,35 +68,28 @@ class NotiService {
     );
   }
 
-  // Show immediate notification
   Future<void> showNotification({
     required int id,
     String? title,
     String? body,
+    String? payload,
   }) async {
-    if (!_isInitialized) {
-      await initializeNotifications();
-    }
-
     await notificationsPlugin.show(
       id,
       title,
       body,
       _notificationDetails(),
+      payload: payload,
     );
   }
 
-  // Schedule a notification for a specific time
   Future<void> scheduleNotification({
     required int id,
     String? title,
     String? body,
     required DateTime scheduledTime,
+    String? payload,
   }) async {
-    if (!_isInitialized) {
-      await initializeNotifications();
-    }
-
     await notificationsPlugin.zonedSchedule(
       id,
       title,
@@ -112,15 +97,14 @@ class NotiService {
       tz.TZDateTime.from(scheduledTime, tz.local),
       _notificationDetails(),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: payload,
     );
   }
 
-  // Cancel a specific notification
   Future<void> cancelNotification(int id) async {
     await notificationsPlugin.cancel(id);
   }
 
-  // Cancel all notifications
   Future<void> cancelAllNotifications() async {
     await notificationsPlugin.cancelAll();
   }
