@@ -67,8 +67,8 @@ class _HomePageState extends State<HomePage> {
 
   void _createInitialData() {
     toDoList = [
-      ["Watch tutorial", false, "Study", "low", null, []],
-      ["Exercise", false, "Health/Exc", "medium", null, []],
+      ["Watch tutorial", false, "Study", "low", null],
+      ["Exercise", false, "Health/Exc", "medium", null],
     ];
     _myBox.put("TODOLIST", toDoList);
   }
@@ -116,7 +116,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void saveNewTask(DateTime? reminderTime, List<Map<String, String>> subTasks) {
+  void saveNewTask(DateTime? reminderTime) {
     setState(() {
       toDoList.add([
         _controller.text,
@@ -124,7 +124,6 @@ class _HomePageState extends State<HomePage> {
         _selectedCategory,
         _selectedPriority.name,
         reminderTime,
-        subTasks,
       ]);
       _controller.clear();
       _updateDatabase();
@@ -135,14 +134,13 @@ class _HomePageState extends State<HomePage> {
   void createNewTask() {
     _selectedPriority = Priority.low;
     DateTime? reminderTime;
-    List<Map<String, String>> subTasks = [];
 
     showDialog(
       context: context,
       builder: (context) {
         return DialogBox(
           controller: _controller,
-          onSave: () => saveNewTask(reminderTime, subTasks),
+          onSave: () => saveNewTask(reminderTime),
           onCancel: () => Navigator.of(context).pop(),
           categories: categories,
           selectedCategory: _selectedCategory,
@@ -165,10 +163,6 @@ class _HomePageState extends State<HomePage> {
           onReminderTimeChanged: (DateTime? newTime) {
             reminderTime = newTime;
           },
-          subTasks: subTasks,
-          onSubTasksChanged: (List<Map<String, String>> newSubTasks) {
-            subTasks = newSubTasks;
-          },
         );
       },
     );
@@ -181,7 +175,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void editTask(int index, String newText, Color newColor, DateTime? newReminderTime, List<Map<String, String>> newSubTasks) {
+  void editTask(int index, String newText, Color newColor, DateTime? newReminderTime) {
     setState(() {
       Priority newPriority = Priority.values.firstWhere(
             (p) => p.color == newColor,
@@ -191,7 +185,6 @@ class _HomePageState extends State<HomePage> {
       toDoList[index][0] = newText;
       toDoList[index][3] = newPriority.name;
       toDoList[index][4] = newReminderTime;
-      toDoList[index][5] = newSubTasks;
       _updateDatabase();
     });
   }
@@ -389,12 +382,11 @@ class _HomePageState extends State<HomePage> {
                         deleteTask(originalIndex);
                       },
                       isDarkMode: _isDarkMode,
-                      onEdit: (newText, newColor, newReminderTime, newSubTasks) {
+                      onEdit: (newText, newColor, newReminderTime) {
                         int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                        editTask(originalIndex, newText, newColor, newReminderTime, newSubTasks);
+                        editTask(originalIndex, newText, newColor, newReminderTime);
                       },
                       reminderTime: categoryTasks[index][4],
-                      subTasks: categoryTasks[index][5],
                     );
                   },
                 );

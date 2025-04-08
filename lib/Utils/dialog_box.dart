@@ -12,8 +12,6 @@ class DialogBox extends StatelessWidget {
   final ValueChanged<String?> onPriorityChanged;
   final DateTime? reminderTime;
   final ValueChanged<DateTime?> onReminderTimeChanged;
-  final List<Map<String, String>> subTasks;
-  final ValueChanged<List<Map<String, String>>> onSubTasksChanged;
 
   const DialogBox({
     Key? key,
@@ -28,8 +26,6 @@ class DialogBox extends StatelessWidget {
     required this.onPriorityChanged,
     required this.reminderTime,
     required this.onReminderTimeChanged,
-    required this.subTasks,
-    required this.onSubTasksChanged,
   }) : super(key: key);
 
   @override
@@ -44,7 +40,7 @@ class DialogBox extends StatelessWidget {
             decoration: const InputDecoration(labelText: 'Task Name'),
           ),
           const SizedBox(height: 20),
-          // Other input fields like category, priority, reminder time, and subtasks
+          // Other input fields like category, priority, reminder time
           // Use the provided parameters to handle changes and display current values
         ],
       ),
