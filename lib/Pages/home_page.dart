@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:to_do_app/Utils/dialog_box.dart';
 import 'package:to_do_app/Utils/todo_tile.dart';
 import 'package:to_do_app/Pages/profile_page.dart';
+import 'dart:io';
 
 // Priority Enum
 enum Priority {
@@ -15,7 +16,7 @@ enum Priority {
   const Priority({required this.color});
 
   // Convert to string representation
-  String get displayName => name.capitalize();
+  String get displayName => name.capitalizeFirstLetter();
 
   // Convert to/from string for Hive storage
   static Priority fromString(String priorityString) {
@@ -28,7 +29,7 @@ enum Priority {
 
 // Extension to capitalize first letter
 extension StringExtension on String {
-  String capitalize() {
+  String capitalizeFirstLetter() {
     return "${this[0].toUpperCase()}${substring(1)}";
   }
 }
@@ -50,11 +51,16 @@ class _HomePageState extends State<HomePage> {
   final List<String> categories = ['Work', 'Study', 'Personal', 'Health/Exc'];
   final List<Priority> priorities = Priority.values;
 
+  // User data
+  String userName = "User Name";
+  String? profileImagePath;
+
   @override
   void initState() {
     super.initState();
     _initializeData();
     _loadThemePreference();
+    _loadUserData();
   }
 
   void _initializeData() {
@@ -67,8 +73,8 @@ class _HomePageState extends State<HomePage> {
 
   void _createInitialData() {
     toDoList = [
-      ["Watch tutorial", false, "Study", "low", null],
-      ["Exercise", false, "Health/Exc", "medium", null],
+      ["Watch tutorial", false, "Study", "low"],
+      ["Exercise", false, "Health/Exc", "medium"],
     ];
     _myBox.put("TODOLIST", toDoList);
   }
@@ -82,6 +88,23 @@ class _HomePageState extends State<HomePage> {
     if (savedTheme != null) {
       setState(() {
         _isDarkMode = savedTheme;
+      });
+    }
+  }
+
+  void _loadUserData() {
+    final savedName = _myBox.get("USER_NAME");
+    final savedProfileImage = _myBox.get("PROFILE_IMAGE");
+
+    if (savedName != null) {
+      setState(() {
+        userName = savedName;
+      });
+    }
+
+    if (savedProfileImage != null) {
+      setState(() {
+        profileImagePath = savedProfileImage;
       });
     }
   }
@@ -102,7 +125,10 @@ class _HomePageState extends State<HomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const ProfilePage()),
-    );
+    ).then((_) {
+      // Refresh user data when returning from profile page
+      _loadUserData();
+    });
   }
 
   void _updateDatabase() {
@@ -116,14 +142,13 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void saveNewTask(DateTime? reminderTime) {
+  void saveNewTask() {
     setState(() {
       toDoList.add([
         _controller.text,
         false,
         _selectedCategory,
         _selectedPriority.name,
-        reminderTime,
       ]);
       _controller.clear();
       _updateDatabase();
@@ -133,14 +158,13 @@ class _HomePageState extends State<HomePage> {
 
   void createNewTask() {
     _selectedPriority = Priority.low;
-    DateTime? reminderTime;
 
     showDialog(
       context: context,
       builder: (context) {
         return DialogBox(
           controller: _controller,
-          onSave: () => saveNewTask(reminderTime),
+          onSave: saveNewTask,
           onCancel: () => Navigator.of(context).pop(),
           categories: categories,
           selectedCategory: _selectedCategory,
@@ -159,10 +183,6 @@ class _HomePageState extends State<HomePage> {
               );
             });
           },
-          reminderTime: null,
-          onReminderTimeChanged: (DateTime? newTime) {
-            reminderTime = newTime;
-          },
         );
       },
     );
@@ -175,7 +195,8 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void editTask(int index, String newText, Color newColor, DateTime? newReminderTime) {
+  // Updated to match expected function signature
+  void editTask(int index, String newText, Color newColor) {
     setState(() {
       Priority newPriority = Priority.values.firstWhere(
             (p) => p.color == newColor,
@@ -184,7 +205,6 @@ class _HomePageState extends State<HomePage> {
 
       toDoList[index][0] = newText;
       toDoList[index][3] = newPriority.name;
-      toDoList[index][4] = newReminderTime;
       _updateDatabase();
     });
   }
@@ -275,8 +295,13 @@ class _HomePageState extends State<HomePage> {
                         ],
                         border: Border.all(color: Colors.white, width: 3),
                       ),
-                      child: const ClipOval(
-                        child: Icon(
+                      child: ClipOval(
+                        child: profileImagePath != null
+                            ? Image.file(
+                          File(profileImagePath!),
+                          fit: BoxFit.cover,
+                        )
+                            : const Icon(
                           Icons.person,
                           size: 70,
                           color: Colors.blue,
@@ -285,9 +310,9 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  const Text(
-                    'User Profile',
-                    style: TextStyle(
+                  Text(
+                    userName,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -382,11 +407,11 @@ class _HomePageState extends State<HomePage> {
                         deleteTask(originalIndex);
                       },
                       isDarkMode: _isDarkMode,
-                      onEdit: (newText, newColor, newReminderTime) {
+                      onEdit: (newText, newColor) {  // Updated to match expected function signature
                         int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                        editTask(originalIndex, newText, newColor, newReminderTime);
+                        editTask(originalIndex, newText, newColor);
                       },
-                      reminderTime: categoryTasks[index][4],
+                      // No reminder time parameter
                     );
                   },
                 );

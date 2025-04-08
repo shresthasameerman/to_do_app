@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:intl/intl.dart';
 
 class ToDoTile extends StatefulWidget {
   final String taskName;
@@ -9,8 +8,7 @@ class ToDoTile extends StatefulWidget {
   final Function(bool?)? onChanged;
   final Function(BuildContext)? deleteFunction;
   final bool isDarkMode;
-  final Function(String, Color, DateTime?) onEdit;
-  final DateTime? reminderTime;
+  final Function(String, Color) onEdit;
 
   const ToDoTile({
     super.key,
@@ -21,7 +19,6 @@ class ToDoTile extends StatefulWidget {
     required this.deleteFunction,
     required this.isDarkMode,
     required this.onEdit,
-    required this.reminderTime,
   });
 
   @override
@@ -31,14 +28,12 @@ class ToDoTile extends StatefulWidget {
 class _ToDoTileState extends State<ToDoTile> {
   late TextEditingController _editController;
   late Color _currentPriorityColor;
-  late DateTime? _currentReminderTime;
 
   @override
   void initState() {
     super.initState();
     _editController = TextEditingController(text: widget.taskName);
     _currentPriorityColor = widget.priorityColor;
-    _currentReminderTime = widget.reminderTime;
   }
 
   @override
@@ -94,61 +89,6 @@ class _ToDoTileState extends State<ToDoTile> {
                   _buildPriorityColorOption(Colors.green, 'Low'),
                 ],
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _currentReminderTime == null
-                          ? 'No reminder set'
-                          : 'Reminder: ${DateFormat('MMM dd, yyyy - hh:mm a').format(_currentReminderTime!)}',
-                      style: TextStyle(
-                        color: widget.isDarkMode ? Colors.white : Colors.black,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.access_time,
-                        color: widget.isDarkMode ? Colors.white : Colors.black),
-                    onPressed: () async {
-                      final DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: _currentReminderTime ?? DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime(2100),
-                      );
-                      if (pickedDate != null) {
-                        final TimeOfDay? pickedTime = await showTimePicker(
-                          context: context,
-                          initialTime: _currentReminderTime != null
-                              ? TimeOfDay.fromDateTime(_currentReminderTime!)
-                              : TimeOfDay.now(),
-                        );
-                        if (pickedTime != null) {
-                          setState(() {
-                            _currentReminderTime = DateTime(
-                              pickedDate.year,
-                              pickedDate.month,
-                              pickedDate.day,
-                              pickedTime.hour,
-                              pickedTime.minute,
-                            );
-                          });
-                        }
-                      }
-                    },
-                  ),
-                  if (_currentReminderTime != null)
-                    IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.red),
-                      onPressed: () {
-                        setState(() {
-                          _currentReminderTime = null;
-                        });
-                      },
-                    ),
-                ],
-              ),
             ],
           ),
           actions: [
@@ -163,7 +103,7 @@ class _ToDoTileState extends State<ToDoTile> {
             ),
             TextButton(
               onPressed: () {
-                widget.onEdit(_editController.text, _currentPriorityColor, _currentReminderTime);
+                widget.onEdit(_editController.text, _currentPriorityColor);
                 Navigator.pop(context);
               },
               child: Text(
@@ -253,84 +193,58 @@ class _ToDoTileState extends State<ToDoTile> {
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Transform.scale(
-                        scale: 1.2,
-                        child: Checkbox(
-                          value: widget.taskCompleted,
-                          onChanged: widget.onChanged,
-                          activeColor: widget.priorityColor,
-                          checkColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          side: BorderSide(
-                            color: widget.priorityColor,
-                            width: 2,
-                          ),
-                        ),
+                  Transform.scale(
+                    scale: 1.2,
+                    child: Checkbox(
+                      value: widget.taskCompleted,
+                      onChanged: widget.onChanged,
+                      activeColor: widget.priorityColor,
+                      checkColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(5),
                       ),
-                      const SizedBox(width: 16),
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: widget.priorityColor,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: widget.priorityColor.withOpacity(0.5),
-                              spreadRadius: 2,
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          widget.taskName,
-                          style: TextStyle(
-                            decoration: widget.taskCompleted
-                                ? TextDecoration.lineThrough
-                                : TextDecoration.none,
-                            color: widget.taskCompleted
-                                ? Colors.grey
-                                : widget.isDarkMode ? Colors.white : Colors.black,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.5,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (widget.reminderTime != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 68.0, top: 8.0),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.notifications,
-                            size: 16,
-                            color: widget.isDarkMode ? Colors.white70 : Colors.black54,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            DateFormat('MMM dd, yyyy - hh:mm a').format(widget.reminderTime!),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: widget.isDarkMode ? Colors.white70 : Colors.black54,
-                            ),
-                          ),
-                        ],
+                      side: BorderSide(
+                        color: widget.priorityColor,
+                        width: 2,
                       ),
                     ),
+                  ),
+                  const SizedBox(width: 16),
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: widget.priorityColor,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: widget.priorityColor.withOpacity(0.5),
+                          spreadRadius: 2,
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      widget.taskName,
+                      style: TextStyle(
+                        decoration: widget.taskCompleted
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                        color: widget.taskCompleted
+                            ? Colors.grey
+                            : widget.isDarkMode ? Colors.white : Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.5,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
             ),

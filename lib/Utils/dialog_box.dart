@@ -10,8 +10,6 @@ class DialogBox extends StatelessWidget {
   final List<String> priorities;
   final String selectedPriority;
   final ValueChanged<String?> onPriorityChanged;
-  final DateTime? reminderTime;
-  final ValueChanged<DateTime?> onReminderTimeChanged;
 
   const DialogBox({
     Key? key,
@@ -24,8 +22,6 @@ class DialogBox extends StatelessWidget {
     required this.priorities,
     required this.selectedPriority,
     required this.onPriorityChanged,
-    required this.reminderTime,
-    required this.onReminderTimeChanged,
   }) : super(key: key);
 
   @override
@@ -40,8 +36,56 @@ class DialogBox extends StatelessWidget {
             decoration: const InputDecoration(labelText: 'Task Name'),
           ),
           const SizedBox(height: 20),
-          // Other input fields like category, priority, reminder time
-          // Use the provided parameters to handle changes and display current values
+          DropdownButtonFormField<String>(
+            decoration: const InputDecoration(labelText: 'Category'),
+            value: selectedCategory,
+            items: categories.map((String category) {
+              return DropdownMenuItem<String>(
+                value: category,
+                child: Text(category),
+              );
+            }).toList(),
+            onChanged: onCategoryChanged,
+          ),
+          const SizedBox(height: 20),
+          DropdownButtonFormField<String>(
+            decoration: const InputDecoration(labelText: 'Priority'),
+            value: selectedPriority,
+            items: priorities.map((String priority) {
+              Color priorityColor;
+              switch (priority) {
+                case 'high':
+                  priorityColor = Colors.red;
+                  break;
+                case 'medium':
+                  priorityColor = Colors.orange;
+                  break;
+                case 'low':
+                  priorityColor = Colors.green;
+                  break;
+                default:
+                  priorityColor = Colors.green;
+              }
+              return DropdownMenuItem<String>(
+                value: priority,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: priorityColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(priority.capitalize()),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: onPriorityChanged,
+          ),
         ],
       ),
       actions: [
@@ -49,5 +93,11 @@ class DialogBox extends StatelessWidget {
         ElevatedButton(onPressed: onSave, child: const Text('Save')),
       ],
     );
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }
