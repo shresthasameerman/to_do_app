@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:to_do_app/Utils/dialog_box.dart';
-import 'package:to_do_app/Utils/noti_service.dart';
 import 'package:to_do_app/Utils/todo_tile.dart';
 import 'package:to_do_app/Pages/profile_page.dart';
-import 'dart:async';
 
 // Priority Enum
 enum Priority {
@@ -51,14 +49,12 @@ class _HomePageState extends State<HomePage> {
   List toDoList = [];
   final List<String> categories = ['Work', 'Study', 'Personal', 'Health/Exc'];
   final List<Priority> priorities = Priority.values;
-  final NotiService _notiService = NotiService();
 
   @override
   void initState() {
     super.initState();
     _initializeData();
     _loadThemePreference();
-    _notiService.initializeNotifications();
   }
 
   void _initializeData() {
@@ -71,8 +67,8 @@ class _HomePageState extends State<HomePage> {
 
   void _createInitialData() {
     toDoList = [
-      ["Watch tutorial", false, "Study", "low", null],
-      ["Exercise", false, "Health/Exc", "medium", null],
+      ["Watch tutorial", false, "Study", "low", null, []],
+      ["Exercise", false, "Health/Exc", "medium", null, []],
     ];
     _myBox.put("TODOLIST", toDoList);
   }
@@ -120,7 +116,7 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void saveNewTask(DateTime? reminderTime) {
+  void saveNewTask(DateTime? reminderTime, List<Map<String, String>> subTasks) {
     setState(() {
       toDoList.add([
         _controller.text,
@@ -128,32 +124,25 @@ class _HomePageState extends State<HomePage> {
         _selectedCategory,
         _selectedPriority.name,
         reminderTime,
+        subTasks,
       ]);
       _controller.clear();
       _updateDatabase();
-
-      if (reminderTime != null) {
-        final notiService = NotiService();
-        notiService.scheduleNotification(
-          id: toDoList.length - 1, // Use a unique ID
-          title: 'Task Reminder: ${_controller.text}',
-          body: 'This task is due now!',
-          scheduledTime: reminderTime,
-        );
-      }
     });
     Navigator.of(context).pop();
   }
+
   void createNewTask() {
     _selectedPriority = Priority.low;
     DateTime? reminderTime;
+    List<Map<String, String>> subTasks = [];
 
     showDialog(
       context: context,
       builder: (context) {
         return DialogBox(
           controller: _controller,
-          onSave: () => saveNewTask(reminderTime),
+          onSave: () => saveNewTask(reminderTime, subTasks),
           onCancel: () => Navigator.of(context).pop(),
           categories: categories,
           selectedCategory: _selectedCategory,
@@ -176,20 +165,23 @@ class _HomePageState extends State<HomePage> {
           onReminderTimeChanged: (DateTime? newTime) {
             reminderTime = newTime;
           },
+          subTasks: subTasks,
+          onSubTasksChanged: (List<Map<String, String>> newSubTasks) {
+            subTasks = newSubTasks;
+          },
         );
       },
     );
   }
 
   void deleteTask(int index) {
-    _notiService.cancelNotification(index);
     setState(() {
       toDoList.removeAt(index);
       _updateDatabase();
     });
   }
 
-  void editTask(int index, String newText, Color newColor, DateTime? newReminderTime) {
+  void editTask(int index, String newText, Color newColor, DateTime? newReminderTime, List<Map<String, String>> newSubTasks) {
     setState(() {
       Priority newPriority = Priority.values.firstWhere(
             (p) => p.color == newColor,
@@ -199,19 +191,8 @@ class _HomePageState extends State<HomePage> {
       toDoList[index][0] = newText;
       toDoList[index][3] = newPriority.name;
       toDoList[index][4] = newReminderTime;
+      toDoList[index][5] = newSubTasks;
       _updateDatabase();
-
-      if (newReminderTime != null) {
-        _notiService.cancelNotification(index);
-        _notiService.scheduleNotification(
-          id: index,
-          title: 'Task Reminder',
-          body: newText,
-          scheduledTime: newReminderTime,
-        );
-      } else {
-        _notiService.cancelNotification(index);
-      }
     });
   }
 
@@ -408,11 +389,12 @@ class _HomePageState extends State<HomePage> {
                         deleteTask(originalIndex);
                       },
                       isDarkMode: _isDarkMode,
-                      onEdit: (newText, newColor, newReminderTime) {
+                      onEdit: (newText, newColor, newReminderTime, newSubTasks) {
                         int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                        editTask(originalIndex, newText, newColor, newReminderTime);
+                        editTask(originalIndex, newText, newColor, newReminderTime, newSubTasks);
                       },
                       reminderTime: categoryTasks[index][4],
+                      subTasks: categoryTasks[index][5],
                     );
                   },
                 );

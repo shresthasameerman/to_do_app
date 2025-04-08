@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart';  // Add this line to import the intl package
 
 class ToDoTile extends StatefulWidget {
   final String taskName;
@@ -9,8 +9,9 @@ class ToDoTile extends StatefulWidget {
   final Function(bool?)? onChanged;
   final Function(BuildContext)? deleteFunction;
   final bool isDarkMode;
-  final Function(String, Color, DateTime?) onEdit;
+  final Function(String, Color, DateTime?, List<Map<String, String>>) onEdit;
   final DateTime? reminderTime;
+  final List<Map<String, String>> subTasks;
 
   const ToDoTile({
     super.key,
@@ -22,6 +23,7 @@ class ToDoTile extends StatefulWidget {
     required this.isDarkMode,
     required this.onEdit,
     required this.reminderTime,
+    required this.subTasks,
   });
 
   @override
@@ -32,6 +34,7 @@ class _ToDoTileState extends State<ToDoTile> {
   late TextEditingController _editController;
   late Color _currentPriorityColor;
   late DateTime? _currentReminderTime;
+  late List<Map<String, String>> _currentSubTasks;
 
   @override
   void initState() {
@@ -39,6 +42,7 @@ class _ToDoTileState extends State<ToDoTile> {
     _editController = TextEditingController(text: widget.taskName);
     _currentPriorityColor = widget.priorityColor;
     _currentReminderTime = widget.reminderTime;
+    _currentSubTasks = List<Map<String, String>>.from(widget.subTasks);
   }
 
   @override
@@ -95,6 +99,13 @@ class _ToDoTileState extends State<ToDoTile> {
                 ],
               ),
               const SizedBox(height: 20),
+              Text(
+                'Reminder:',
+                style: TextStyle(
+                  color: widget.isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
@@ -108,31 +119,29 @@ class _ToDoTileState extends State<ToDoTile> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.access_time,
-                        color: widget.isDarkMode ? Colors.white : Colors.black),
+                    icon: const Icon(Icons.access_time, color: Colors.white),
                     onPressed: () async {
                       final DateTime? pickedDate = await showDatePicker(
                         context: context,
-                        initialDate: _currentReminderTime ?? DateTime.now(),
+                        initialDate: DateTime.now(),
                         firstDate: DateTime.now(),
                         lastDate: DateTime(2100),
                       );
                       if (pickedDate != null) {
                         final TimeOfDay? pickedTime = await showTimePicker(
                           context: context,
-                          initialTime: _currentReminderTime != null
-                              ? TimeOfDay.fromDateTime(_currentReminderTime!)
-                              : TimeOfDay.now(),
+                          initialTime: TimeOfDay.now(),
                         );
                         if (pickedTime != null) {
+                          final DateTime combinedDateTime = DateTime(
+                            pickedDate.year,
+                            pickedDate.month,
+                            pickedDate.day,
+                            pickedTime.hour,
+                            pickedTime.minute,
+                          );
                           setState(() {
-                            _currentReminderTime = DateTime(
-                              pickedDate.year,
-                              pickedDate.month,
-                              pickedDate.day,
-                              pickedTime.hour,
-                              pickedTime.minute,
-                            );
+                            _currentReminderTime = combinedDateTime;
                           });
                         }
                       }
@@ -149,6 +158,63 @@ class _ToDoTileState extends State<ToDoTile> {
                     ),
                 ],
               ),
+              const SizedBox(height: 20),
+              Text(
+                'Sub-tasks:',
+                style: TextStyle(
+                  color: widget.isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Column(
+                children: _currentSubTasks.map((subTask) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: TextEditingController(text: subTask['title']),
+                          style: TextStyle(
+                            color: widget.isDarkMode ? Colors.white : Colors.black,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Sub-task title',
+                            hintStyle: TextStyle(color: Colors.grey[600]),
+                            border: const OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            subTask['title'] = value;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: TextEditingController(text: subTask['description']),
+                          style: TextStyle(
+                            color: widget.isDarkMode ? Colors.white : Colors.black,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Sub-task description',
+                            hintStyle: TextStyle(color: Colors.grey[600]),
+                            border: const OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            subTask['description'] = value;
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _currentSubTasks.add({'title': '', 'description': ''});
+                  });
+                },
+                child: const Text('Add Sub-task', style: TextStyle(color: Colors.blue)),
+              ),
             ],
           ),
           actions: [
@@ -163,7 +229,7 @@ class _ToDoTileState extends State<ToDoTile> {
             ),
             TextButton(
               onPressed: () {
-                widget.onEdit(_editController.text, _currentPriorityColor, _currentReminderTime);
+                widget.onEdit(_editController.text, _currentPriorityColor, _currentReminderTime, _currentSubTasks);
                 Navigator.pop(context);
               },
               child: Text(
@@ -310,25 +376,36 @@ class _ToDoTileState extends State<ToDoTile> {
                       ),
                     ],
                   ),
-                  if (widget.reminderTime != null)
+                  if (widget.subTasks.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(left: 68.0, top: 8.0),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.notifications,
-                            size: 16,
-                            color: widget.isDarkMode ? Colors.white70 : Colors.black54,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            DateFormat('MMM dd, yyyy - hh:mm a').format(widget.reminderTime!),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: widget.isDarkMode ? Colors.white70 : Colors.black54,
+                      padding: const EdgeInsets.only(left: 48.0, top: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: widget.subTasks.map((subTask) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  subTask['title']!,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: widget.isDarkMode ? Colors.white70 : Colors.black87,
+                                  ),
+                                ),
+                                Text(
+                                  subTask['description']!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: widget.isDarkMode ? Colors.white54 : Colors.black54,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
+                          );
+                        }).toList(),
                       ),
                     ),
                 ],

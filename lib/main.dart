@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:to_do_app/Pages/home_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:to_do_app/Utils/noti_service.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-
-final NotiService notiService = NotiService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,10 +9,6 @@ void main() async {
   // Initialize Hive
   await Hive.initFlutter();
   await Hive.openBox('mybox');
-
-  // Initialize notifications
-  await notiService.initializeNotifications();
-  await notiService.requestPermissions();
 
   // Set up background notification handler
   const AndroidInitializationSettings initializationSettingsAndroid =
