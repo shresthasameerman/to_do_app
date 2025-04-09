@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:to_do_app/Utils/dialog_box.dart';
 import 'package:to_do_app/Utils/todo_tile.dart';
 import 'package:to_do_app/Pages/profile_page.dart';
 import 'dart:io';
 
-// Priority Enum
 enum Priority {
   low(color: Colors.green),
   medium(color: Colors.orange),
@@ -15,10 +13,8 @@ enum Priority {
   final Color color;
   const Priority({required this.color});
 
-  // Convert to string representation
   String get displayName => name.capitalizeFirstLetter();
 
-  // Convert to/from string for Hive storage
   static Priority fromString(String priorityString) {
     return Priority.values.firstWhere(
           (priority) => priority.name == priorityString,
@@ -27,7 +23,6 @@ enum Priority {
   }
 }
 
-// Extension to capitalize first letter
 extension StringExtension on String {
   String capitalizeFirstLetter() {
     return "${this[0].toUpperCase()}${substring(1)}";
@@ -43,6 +38,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _controller = TextEditingController();
+  final _descriptionController = TextEditingController();
   String _selectedCategory = 'Work';
   Priority _selectedPriority = Priority.low;
   bool _isDarkMode = true;
@@ -51,7 +47,6 @@ class _HomePageState extends State<HomePage> {
   final List<String> categories = ['Work', 'Study', 'Personal', 'Health/Exc'];
   final List<Priority> priorities = Priority.values;
 
-  // User data
   String userName = "User Name";
   String? profileImagePath;
 
@@ -73,14 +68,23 @@ class _HomePageState extends State<HomePage> {
 
   void _createInitialData() {
     toDoList = [
-      ["Watch tutorial", false, "Study", "low"],
-      ["Exercise", false, "Health/Exc", "medium"],
+      ["Watch tutorial", false, "Study", "low", "Learn about Flutter basics."],
+      ["Exercise", false, "Health/Exc", "medium", "Morning workout routine."],
     ];
     _myBox.put("TODOLIST", toDoList);
   }
 
   void _loadData() {
     toDoList = _myBox.get("TODOLIST");
+    _sortTasksByPriority();
+  }
+
+  void _sortTasksByPriority() {
+    toDoList.sort((a, b) {
+      Priority priorityA = Priority.fromString(a[3]);
+      Priority priorityB = Priority.fromString(b[3]);
+      return priorityB.index.compareTo(priorityA.index); // High to Low
+    });
   }
 
   void _loadThemePreference() {
@@ -126,12 +130,12 @@ class _HomePageState extends State<HomePage> {
       context,
       MaterialPageRoute(builder: (context) => const ProfilePage()),
     ).then((_) {
-      // Refresh user data when returning from profile page
       _loadUserData();
     });
   }
 
   void _updateDatabase() {
+    _sortTasksByPriority();
     _myBox.put("TODOLIST", toDoList);
   }
 
@@ -149,8 +153,10 @@ class _HomePageState extends State<HomePage> {
         false,
         _selectedCategory,
         _selectedPriority.name,
+        _descriptionController.text,
       ]);
       _controller.clear();
+      _descriptionController.clear();
       _updateDatabase();
     });
     Navigator.of(context).pop();
@@ -164,6 +170,7 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return DialogBox(
           controller: _controller,
+          descriptionController: _descriptionController,
           onSave: saveNewTask,
           onCancel: () => Navigator.of(context).pop(),
           categories: categories,
@@ -195,16 +202,15 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // Updated to match expected function signature
-  void editTask(int index, String newText, Color newColor) {
+  void editTask(int index, String newText, String newDescription, Color newColor) {
     setState(() {
       Priority newPriority = Priority.values.firstWhere(
             (p) => p.color == newColor,
         orElse: () => Priority.low,
       );
-
       toDoList[index][0] = newText;
       toDoList[index][3] = newPriority.name;
+      toDoList[index][4] = newDescription;
       _updateDatabase();
     });
   }
@@ -212,7 +218,77 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _controller.dispose();
+    _descriptionController.dispose();
     super.dispose();
+  }
+
+  Widget _buildTaskView(Map<String, List> categorizedTasks) {
+    return DefaultTabController(
+      length: categories.length,
+      child: Column(
+        children: [
+          Material(
+            color: _isDarkMode ? Colors.grey[900] : Colors.white,
+            child: TabBar(
+              isScrollable: true,
+              indicatorColor: Colors.blue,
+              labelColor: _isDarkMode ? Colors.white : Colors.blue,
+              unselectedLabelColor: _isDarkMode ? Colors.grey : Colors.grey[700],
+              tabs: categories.map((category) => Tab(text: category)).toList(),
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              children: categories.map((category) {
+                final categoryTasks = (categorizedTasks[category] ?? [])
+                  ..sort((a, b) {
+                    Priority priorityA = Priority.fromString(a[3]);
+                    Priority priorityB = Priority.fromString(b[3]);
+                    return priorityB.index.compareTo(priorityA.index); // High to Low
+                  });
+
+                return categoryTasks.isEmpty
+                    ? Center(
+                  child: Text(
+                    'No tasks in this category',
+                    style: TextStyle(
+                      color: _isDarkMode ? Colors.white54 : Colors.black54,
+                    ),
+                  ),
+                )
+                    : ListView.builder(
+                  itemCount: categoryTasks.length,
+                  itemBuilder: (context, index) {
+                    return ToDoTile(
+                      taskName: categoryTasks[index][0],
+                      taskDescription: categoryTasks[index][4],
+                      taskCompleted: categoryTasks[index][1],
+                      priorityColor: Priority.values.firstWhere(
+                            (p) => p.name == categoryTasks[index][3],
+                        orElse: () => Priority.low,
+                      ).color,
+                      onChanged: (value) {
+                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
+                        checkBoxChanged(value ?? false, originalIndex);
+                      },
+                      deleteFunction: (context) {
+                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
+                        deleteTask(originalIndex);
+                      },
+                      isDarkMode: _isDarkMode,
+                      onEdit: (newText, newDescription, newColor) {
+                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
+                        editTask(originalIndex, newText, newDescription, newColor);
+                      },
+                    );
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -234,7 +310,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
 
-    // Organize tasks by category
     Map<String, List> categorizedTasks = {};
     for (var category in categories) {
       categorizedTasks[category] = toDoList.where((task) => task[2] == category).toList();
@@ -356,69 +431,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTaskView(Map<String, List> categorizedTasks) {
-    return DefaultTabController(
-      length: categories.length,
-      child: Column(
-        children: [
-          Material(
-            color: _isDarkMode ? Colors.grey[900] : Colors.white,
-            child: TabBar(
-              isScrollable: true,
-              indicatorColor: Colors.blue,
-              labelColor: _isDarkMode ? Colors.white : Colors.blue,
-              unselectedLabelColor: _isDarkMode ? Colors.grey : Colors.grey[700],
-              tabs: categories.map((category) => Tab(text: category)).toList(),
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              children: categories.map((category) {
-                final categoryTasks = categorizedTasks[category] ?? [];
-                return categoryTasks.isEmpty
-                    ? Center(
-                  child: Text(
-                    'No tasks in this category',
-                    style: TextStyle(
-                      color: _isDarkMode ? Colors.white54 : Colors.black54,
-                    ),
-                  ),
-                )
-                    : ListView.builder(
-                  itemCount: categoryTasks.length,
-                  itemBuilder: (context, index) {
-                    return ToDoTile(
-                      taskName: categoryTasks[index][0],
-                      taskCompleted: categoryTasks[index][1],
-                      priorityColor: Priority.values.firstWhere(
-                            (p) => p.name == categoryTasks[index][3],
-                        orElse: () => Priority.low,
-                      ).color,
-                      onChanged: (value) {
-                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                        checkBoxChanged(value ?? false, originalIndex);
-                      },
-                      deleteFunction: (context) {
-                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                        deleteTask(originalIndex);
-                      },
-                      isDarkMode: _isDarkMode,
-                      onEdit: (newText, newColor) {  // Updated to match expected function signature
-                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                        editTask(originalIndex, newText, newColor);
-                      },
-                      // No reminder time parameter
-                    );
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-        ],
       ),
     );
   }

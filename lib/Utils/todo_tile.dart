@@ -3,22 +3,24 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 
 class ToDoTile extends StatefulWidget {
   final String taskName;
+  final String taskDescription; // New field for description
   final bool taskCompleted;
   final Color priorityColor;
   final Function(bool?)? onChanged;
   final Function(BuildContext)? deleteFunction;
   final bool isDarkMode;
-  final Function(String, Color) onEdit;
+  final Function(String, String, Color) onEdit; // Updated for description
 
   const ToDoTile({
     super.key,
     required this.taskName,
+    required this.taskDescription, // New required field
     required this.taskCompleted,
     required this.priorityColor,
     required this.onChanged,
     required this.deleteFunction,
     required this.isDarkMode,
-    required this.onEdit,
+    required this.onEdit, // Updated for description
   });
 
   @override
@@ -26,19 +28,23 @@ class ToDoTile extends StatefulWidget {
 }
 
 class _ToDoTileState extends State<ToDoTile> {
+  bool _isExpanded = false; // State to manage expansion
   late TextEditingController _editController;
+  late TextEditingController _descriptionEditController; // Controller for editing description
   late Color _currentPriorityColor;
 
   @override
   void initState() {
     super.initState();
     _editController = TextEditingController(text: widget.taskName);
+    _descriptionEditController = TextEditingController(text: widget.taskDescription);
     _currentPriorityColor = widget.priorityColor;
   }
 
   @override
   void dispose() {
     _editController.dispose();
+    _descriptionEditController.dispose();
     super.dispose();
   }
 
@@ -61,6 +67,26 @@ class _ToDoTileState extends State<ToDoTile> {
                 controller: _editController,
                 autofocus: true,
                 decoration: InputDecoration(
+                  labelText: 'Task Name',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: _currentPriorityColor),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                style: TextStyle(
+                  color: widget.isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _descriptionEditController, // For editing description
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  alignLabelWithHint: true,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -103,7 +129,11 @@ class _ToDoTileState extends State<ToDoTile> {
             ),
             TextButton(
               onPressed: () {
-                widget.onEdit(_editController.text, _currentPriorityColor);
+                widget.onEdit(
+                  _editController.text,
+                  _descriptionEditController.text, // Pass updated description
+                  _currentPriorityColor,
+                );
                 Navigator.pop(context);
               },
               child: Text(
@@ -158,7 +188,12 @@ class _ToDoTileState extends State<ToDoTile> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GestureDetector(
-        onLongPress: _showEditDialog,
+        onTap: () {
+          setState(() {
+            _isExpanded = !_isExpanded; // Toggle expansion
+          });
+        },
+        onLongPress: _showEditDialog, // Show edit dialog on long press
         child: Slidable(
           endActionPane: ActionPane(
             motion: const StretchMotion(),
@@ -193,58 +228,57 @@ class _ToDoTileState extends State<ToDoTile> {
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Transform.scale(
-                    scale: 1.2,
-                    child: Checkbox(
-                      value: widget.taskCompleted,
-                      onChanged: widget.onChanged,
-                      activeColor: widget.priorityColor,
-                      checkColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      side: BorderSide(
-                        color: widget.priorityColor,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: widget.priorityColor,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: widget.priorityColor.withOpacity(0.5),
-                          spreadRadius: 2,
-                          blurRadius: 4,
+                  Row(
+                    children: [
+                      Transform.scale(
+                        scale: 1.2,
+                        child: Checkbox(
+                          value: widget.taskCompleted,
+                          onChanged: widget.onChanged,
+                          activeColor: widget.priorityColor,
+                          checkColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          side: BorderSide(
+                            color: widget.priorityColor,
+                            width: 2,
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      widget.taskName,
-                      style: TextStyle(
-                        decoration: widget.taskCompleted
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
-                        color: widget.taskCompleted
-                            ? Colors.grey
-                            : widget.isDarkMode ? Colors.white : Colors.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.5,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          widget.taskName,
+                          style: TextStyle(
+                            decoration: widget.taskCompleted
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                            color: widget.taskCompleted
+                                ? Colors.grey
+                                : widget.isDarkMode ? Colors.white : Colors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
+                  if (_isExpanded) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      widget.taskDescription,
+                      style: TextStyle(
+                        color: widget.isDarkMode ? Colors.white70 : Colors.black87,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

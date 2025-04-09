@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:to_do_app/Pages/home_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:to_do_app/Pages/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -10,7 +10,7 @@ void main() async {
   await Hive.initFlutter();
   await Hive.openBox('mybox');
 
-  // Set up background notification handler
+  // Initialize notifications
   const AndroidInitializationSettings initializationSettingsAndroid =
   AndroidInitializationSettings('@mipmap/ic_launcher');
   final InitializationSettings initializationSettings =
@@ -18,7 +18,7 @@ void main() async {
   await FlutterLocalNotificationsPlugin().initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) {
-      // Handle when app is in foreground
+      // Handle notification responses
     },
   );
 
