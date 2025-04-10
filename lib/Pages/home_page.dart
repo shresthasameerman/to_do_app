@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:to_do_app/Utils/dialog_box.dart';
 import 'package:to_do_app/Utils/todo_tile.dart';
 import 'package:to_do_app/Pages/profile_page.dart';
+import 'package:to_do_app/Pages/study_timer_page.dart'; // Import the StudyTimerPage from its separate file
 import 'dart:io';
 
 enum Priority {
@@ -415,6 +416,25 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.timer,
+                color: _isDarkMode ? Colors.white : Colors.black,
+              ),
+              title: Text(
+                'Study Timer',
+                style: TextStyle(
+                  color: _isDarkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const StudyTimerPage()),
+                );
+              },
             ),
             ListTile(
               leading: Icon(
