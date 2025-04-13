@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // For date formatting
 
-class DialogBox extends StatefulWidget {
+class DialogBox extends StatelessWidget {
   final TextEditingController controller;
-  final TextEditingController descriptionController; // Added for description
+  final TextEditingController descriptionController;
   final VoidCallback onSave;
   final VoidCallback onCancel;
-  final List<String> categories;
-  final String selectedCategory;
-  final ValueChanged<String?> onCategoryChanged;
   final List<String> priorities;
   final String selectedPriority;
+  final List<String> categories;
+  final String selectedCategory;
   final ValueChanged<String?> onPriorityChanged;
+  final ValueChanged<String?> onCategoryChanged;
 
   const DialogBox({
     Key? key,
@@ -19,22 +18,13 @@ class DialogBox extends StatefulWidget {
     required this.descriptionController,
     required this.onSave,
     required this.onCancel,
-    required this.categories,
-    required this.selectedCategory,
-    required this.onCategoryChanged,
     required this.priorities,
     required this.selectedPriority,
+    required this.categories,
+    required this.selectedCategory,
     required this.onPriorityChanged,
+    required this.onCategoryChanged,
   }) : super(key: key);
-
-  @override
-  State<DialogBox> createState() => _DialogBoxState();
-}
-
-class _DialogBoxState extends State<DialogBox> {
-  DateTime? _selectedDueDate; // Added for task due date
-  bool _isUrgent = false; // Added for urgency
-  bool _isImportant = false; // Added for importance
 
   @override
   Widget build(BuildContext context) {
@@ -44,165 +34,53 @@ class _DialogBoxState extends State<DialogBox> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Task Name
             TextField(
-              controller: widget.controller,
+              controller: controller,
               decoration: const InputDecoration(labelText: 'Task Name'),
             ),
-            const SizedBox(height: 20),
-
-            // Task Description
+            const SizedBox(height: 10),
             TextField(
-              controller: widget.descriptionController,
+              controller: descriptionController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                alignLabelWithHint: true,
-              ),
+              decoration: const InputDecoration(labelText: 'Description'),
             ),
-            const SizedBox(height: 20),
-
-            // Category Dropdown
+            const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Category'),
-              value: widget.selectedCategory,
-              items: widget.categories.map((String category) {
-                return DropdownMenuItem<String>(
+              value: selectedCategory,
+              items: categories.map((category) {
+                return DropdownMenuItem(
                   value: category,
                   child: Text(category),
                 );
               }).toList(),
-              onChanged: widget.onCategoryChanged,
+              onChanged: onCategoryChanged,
+              decoration: const InputDecoration(labelText: 'Category'),
             ),
-            const SizedBox(height: 20),
-
-            // Priority Dropdown
+            const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Priority'),
-              value: widget.selectedPriority,
-              items: widget.priorities.map((String priority) {
-                Color priorityColor;
-                switch (priority) {
-                  case 'high':
-                    priorityColor = Colors.red;
-                    break;
-                  case 'medium':
-                    priorityColor = Colors.orange;
-                    break;
-                  case 'low':
-                  default:
-                    priorityColor = Colors.green;
-                }
-                return DropdownMenuItem<String>(
+              value: selectedPriority,
+              items: priorities.map((priority) {
+                return DropdownMenuItem(
                   value: priority,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: priorityColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(priority.capitalize()),
-                    ],
-                  ),
+                  child: Text(priority),
                 );
               }).toList(),
-              onChanged: widget.onPriorityChanged,
-            ),
-            const SizedBox(height: 20),
-
-            // Due Date Picker
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Due Date:"),
-                TextButton(
-                  onPressed: () async {
-                    final pickedDate = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime(2100),
-                    );
-                    setState(() {
-                      _selectedDueDate = pickedDate;
-                    });
-                  },
-                  child: Text(
-                    _selectedDueDate == null
-                        ? "Select Date"
-                        : DateFormat('yyyy-MM-dd').format(_selectedDueDate!),
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: _selectedDueDate == null
-                          ? Colors.blue
-                          : Colors.black,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Urgency and Importance Toggles
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Checkbox(
-                      value: _isUrgent,
-                      onChanged: (value) {
-                        setState(() {
-                          _isUrgent = value!;
-                        });
-                      },
-                    ),
-                    const Text("Urgent"),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Checkbox(
-                      value: _isImportant,
-                      onChanged: (value) {
-                        setState(() {
-                          _isImportant = value!;
-                        });
-                      },
-                    ),
-                    const Text("Important"),
-                  ],
-                ),
-              ],
+              onChanged: onPriorityChanged,
+              decoration: const InputDecoration(labelText: 'Priority'),
             ),
           ],
         ),
       ),
       actions: [
         TextButton(
-          onPressed: widget.onCancel,
+          onPressed: onCancel,
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-            widget.onSave();
-          },
+          onPressed: onSave,
           child: const Text('Save'),
         ),
       ],
     );
-  }
-}
-
-// Extension to capitalize the first letter of a string
-extension StringExtension on String {
-  String capitalize() {
-    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }

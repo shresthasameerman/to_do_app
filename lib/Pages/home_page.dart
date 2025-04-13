@@ -3,7 +3,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:to_do_app/Utils/dialog_box.dart';
 import 'package:to_do_app/Utils/todo_tile.dart';
 import 'package:to_do_app/Pages/profile_page.dart';
-import 'package:to_do_app/Pages/study_timer_page.dart'; // Import the StudyTimerPage from its separate file
+import 'package:to_do_app/Pages/study_timer_page.dart';
+import 'package:to_do_app/Pages/CategoryPage.dart'; // Import the new category page
 import 'dart:io';
 
 enum Priority {
@@ -14,19 +15,11 @@ enum Priority {
   final Color color;
   const Priority({required this.color});
 
-  String get displayName => name.capitalizeFirstLetter();
-
   static Priority fromString(String priorityString) {
     return Priority.values.firstWhere(
           (priority) => priority.name == priorityString,
       orElse: () => Priority.low,
     );
-  }
-}
-
-extension StringExtension on String {
-  String capitalizeFirstLetter() {
-    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }
 
@@ -40,23 +33,69 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final _controller = TextEditingController();
   final _descriptionController = TextEditingController();
-  String _selectedCategory = 'Work';
   Priority _selectedPriority = Priority.low;
-  bool _isDarkMode = true;
   final _myBox = Hive.box('mybox');
   List toDoList = [];
-  final List<String> categories = ['Work', 'Study', 'Personal', 'Health/Exc'];
-  final List<Priority> priorities = Priority.values;
+  String _selectedCategory = 'All';
+  // Changed from final List to a regular List to allow reordering
+  List<String> categories = ['All', 'Work', 'Personal', 'Health', 'Study'];
 
-  String userName = "User Name";
+  bool _isDarkMode = true;
+  String userName = "Guest";
   String? profileImagePath;
+
+  // Theme data for light and dark modes
+  late ThemeData _lightTheme;
+  late ThemeData _darkTheme;
 
   @override
   void initState() {
     super.initState();
+    _initThemes();
     _initializeData();
-    _loadThemePreference();
     _loadUserData();
+    _loadThemePreference();
+    _loadCategoryOrder(); // Load the saved category order
+  }
+
+  void _initThemes() {
+    // Light theme
+    _lightTheme = ThemeData(
+      brightness: Brightness.light,
+      primarySwatch: Colors.blue,
+      scaffoldBackgroundColor: Colors.white,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      textTheme: const TextTheme(
+        bodyMedium: TextStyle(color: Colors.black87),
+        titleMedium: TextStyle(color: Colors.black87),
+      ),
+    );
+
+    // Dark theme
+    _darkTheme = ThemeData(
+      brightness: Brightness.dark,
+      primarySwatch: Colors.blue,
+      scaffoldBackgroundColor: Colors.grey[900],
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.grey[800],
+        foregroundColor: Colors.white,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      textTheme: const TextTheme(
+        bodyMedium: TextStyle(color: Colors.white),
+        titleMedium: TextStyle(color: Colors.white),
+      ),
+    );
   }
 
   void _initializeData() {
@@ -69,81 +108,57 @@ class _HomePageState extends State<HomePage> {
 
   void _createInitialData() {
     toDoList = [
-      ["Watch tutorial", false, "Study", "low", "Learn about Flutter basics."],
-      ["Exercise", false, "Health/Exc", "medium", "Morning workout routine."],
+      ["Learn Flutter", false, "Work", "low", "Start with Flutter basics."],
+      ["Workout", false, "Health", "medium", "Morning exercise routine."],
     ];
     _myBox.put("TODOLIST", toDoList);
   }
 
   void _loadData() {
     toDoList = _myBox.get("TODOLIST");
-    _sortTasksByPriority();
   }
 
-  void _sortTasksByPriority() {
-    toDoList.sort((a, b) {
-      Priority priorityA = Priority.fromString(a[3]);
-      Priority priorityB = Priority.fromString(b[3]);
-      return priorityB.index.compareTo(priorityA.index); // High to Low
-    });
-  }
-
-  void _loadThemePreference() {
-    final savedTheme = _myBox.get("THEME_MODE");
-    if (savedTheme != null) {
-      setState(() {
-        _isDarkMode = savedTheme;
-      });
-    }
+  void _updateDatabase() {
+    _myBox.put("TODOLIST", toDoList);
   }
 
   void _loadUserData() {
-    final savedName = _myBox.get("USER_NAME");
-    final savedProfileImage = _myBox.get("PROFILE_IMAGE");
-
-    if (savedName != null) {
-      setState(() {
-        userName = savedName;
-      });
-    }
-
-    if (savedProfileImage != null) {
-      setState(() {
-        profileImagePath = savedProfileImage;
-      });
-    }
+    userName = _myBox.get("USERNAME") ?? "Guest";
+    profileImagePath = _myBox.get("PROFILE_IMAGE");
   }
 
   void _saveThemePreference() {
     _myBox.put("THEME_MODE", _isDarkMode);
   }
 
-  void _toggleTheme() {
+  void _loadThemePreference() {
+    _isDarkMode = _myBox.get("THEME_MODE") ?? true;
+  }
+
+  // Method to save the category order
+  void _saveCategoryOrder() {
+    _myBox.put("CATEGORIES_ORDER", categories);
+  }
+
+  // Method to load the saved category order
+  void _loadCategoryOrder() {
+    final savedCategories = _myBox.get("CATEGORIES_ORDER");
+    if (savedCategories != null) {
+      setState(() {
+        categories = List<String>.from(savedCategories);
+      });
+    }
+  }
+
+  // Method to handle category reordering
+  void _reorderCategories(int oldIndex, int newIndex) {
     setState(() {
-      _isDarkMode = !_isDarkMode;
-      _saveThemePreference();
-    });
-    Navigator.pop(context);
-  }
-
-  void _navigateToProfile() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ProfilePage()),
-    ).then((_) {
-      _loadUserData();
-    });
-  }
-
-  void _updateDatabase() {
-    _sortTasksByPriority();
-    _myBox.put("TODOLIST", toDoList);
-  }
-
-  void checkBoxChanged(bool value, int index) {
-    setState(() {
-      toDoList[index][1] = value;
-      _updateDatabase();
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final String category = categories.removeAt(oldIndex);
+      categories.insert(newIndex, category);
+      _saveCategoryOrder();
     });
   }
 
@@ -152,7 +167,7 @@ class _HomePageState extends State<HomePage> {
       toDoList.add([
         _controller.text,
         false,
-        _selectedCategory,
+        _selectedCategory == 'All' ? 'Work' : _selectedCategory, // Default to 'Work' if 'All' is selected
         _selectedPriority.name,
         _descriptionController.text,
       ]);
@@ -163,9 +178,14 @@ class _HomePageState extends State<HomePage> {
     Navigator.of(context).pop();
   }
 
-  void createNewTask() {
-    _selectedPriority = Priority.low;
+  void deleteTask(int index) {
+    setState(() {
+      toDoList.removeAt(index);
+      _updateDatabase();
+    });
+  }
 
+  void createNewTask() {
     showDialog(
       context: context,
       builder: (context) {
@@ -174,21 +194,18 @@ class _HomePageState extends State<HomePage> {
           descriptionController: _descriptionController,
           onSave: saveNewTask,
           onCancel: () => Navigator.of(context).pop(),
-          categories: categories,
-          selectedCategory: _selectedCategory,
-          onCategoryChanged: (String? newValue) {
-            setState(() {
-              _selectedCategory = newValue!;
-            });
-          },
-          priorities: priorities.map((p) => p.name).toList(),
+          priorities: Priority.values.map((p) => p.name).toList(),
           selectedPriority: _selectedPriority.name,
+          categories: categories.where((c) => c != 'All').toList(), // Exclude 'All' from new task creation
+          selectedCategory: _selectedCategory == 'All' ? 'Work' : _selectedCategory,
           onPriorityChanged: (String? newValue) {
             setState(() {
-              _selectedPriority = Priority.values.firstWhere(
-                    (p) => p.name == newValue,
-                orElse: () => Priority.low,
-              );
+              _selectedPriority = Priority.fromString(newValue ?? "low");
+            });
+          },
+          onCategoryChanged: (String? newValue) {
+            setState(() {
+              _selectedCategory = newValue ?? 'Work';
             });
           },
         );
@@ -196,23 +213,45 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void deleteTask(int index) {
-    setState(() {
-      toDoList.removeAt(index);
-      _updateDatabase();
+  void _navigateToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfilePage()),
+    ).then((_) {
+      setState(() {
+        _loadUserData();
+      });
     });
   }
 
-  void editTask(int index, String newText, String newDescription, Color newColor) {
+  void _navigateToStudyTimer() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const StudyTimerPage()),
+    );
+  }
+
+  // New method to navigate to the categories page
+  void _navigateToCategories() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CategoryPage()),
+    ).then((_) {
+      // Refresh the categories and selected category when returning
+      setState(() {
+        _loadCategoryOrder();
+        // Make sure the selected category still exists
+        if (!categories.contains(_selectedCategory)) {
+          _selectedCategory = 'All';
+        }
+      });
+    });
+  }
+
+  void _toggleTheme() {
     setState(() {
-      Priority newPriority = Priority.values.firstWhere(
-            (p) => p.color == newColor,
-        orElse: () => Priority.low,
-      );
-      toDoList[index][0] = newText;
-      toDoList[index][3] = newPriority.name;
-      toDoList[index][4] = newDescription;
-      _updateDatabase();
+      _isDarkMode = !_isDarkMode;
+      _saveThemePreference();
     });
   }
 
@@ -223,235 +262,346 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  Widget _buildTaskView(Map<String, List> categorizedTasks) {
-    return DefaultTabController(
-      length: categories.length,
-      child: Column(
-        children: [
-          Material(
-            color: _isDarkMode ? Colors.grey[900] : Colors.white,
-            child: TabBar(
-              isScrollable: true,
-              indicatorColor: Colors.blue,
-              labelColor: _isDarkMode ? Colors.white : Colors.blue,
-              unselectedLabelColor: _isDarkMode ? Colors.grey : Colors.grey[700],
-              tabs: categories.map((category) => Tab(text: category)).toList(),
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              children: categories.map((category) {
-                final categoryTasks = (categorizedTasks[category] ?? [])
-                  ..sort((a, b) {
-                    Priority priorityA = Priority.fromString(a[3]);
-                    Priority priorityB = Priority.fromString(b[3]);
-                    return priorityB.index.compareTo(priorityA.index); // High to Low
-                  });
+  // Widget to display profile image with proper handling for different sources
+  Widget _buildProfileImage() {
+    if (profileImagePath == null || profileImagePath!.isEmpty) {
+      // No image set, show default icon
+      return const CircleAvatar(
+        radius: 36,
+        backgroundColor: Colors.blue,
+        child: Icon(Icons.person, size: 40, color: Colors.white),
+      );
+    }
 
-                return categoryTasks.isEmpty
-                    ? Center(
-                  child: Text(
-                    'No tasks in this category',
-                    style: TextStyle(
-                      color: _isDarkMode ? Colors.white54 : Colors.black54,
-                    ),
-                  ),
-                )
-                    : ListView.builder(
-                  itemCount: categoryTasks.length,
-                  itemBuilder: (context, index) {
-                    return ToDoTile(
-                      taskName: categoryTasks[index][0],
-                      taskDescription: categoryTasks[index][4],
-                      taskCompleted: categoryTasks[index][1],
-                      priorityColor: Priority.values.firstWhere(
-                            (p) => p.name == categoryTasks[index][3],
-                        orElse: () => Priority.low,
-                      ).color,
-                      onChanged: (value) {
-                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                        checkBoxChanged(value ?? false, originalIndex);
-                      },
-                      deleteFunction: (context) {
-                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                        deleteTask(originalIndex);
-                      },
-                      isDarkMode: _isDarkMode,
-                      onEdit: (newText, newDescription, newColor) {
-                        int originalIndex = toDoList.indexOf(categoryTasks[index]);
-                        editTask(originalIndex, newText, newDescription, newColor);
-                      },
-                    );
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
+    // Check if the path is a file path or an asset path
+    if (profileImagePath!.startsWith('assets/')) {
+      // Asset image
+      return CircleAvatar(
+        radius: 36,
+        backgroundColor: Colors.white24,
+        backgroundImage: AssetImage(profileImagePath!),
+      );
+    } else {
+      // File image (from camera or gallery)
+      final file = File(profileImagePath!);
+      if (!file.existsSync()) {
+        // File doesn't exist, show default icon
+        return const CircleAvatar(
+          radius: 36,
+          backgroundColor: Colors.blue,
+          child: Icon(Icons.person, size: 40, color: Colors.white),
+        );
+      }
+
+      return CircleAvatar(
+        radius: 36,
+        backgroundColor: Colors.white24,
+        backgroundImage: FileImage(file),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData themeData = _isDarkMode
-        ? ThemeData.dark().copyWith(
-      primaryColor: Colors.blue,
-      appBarTheme: AppBarTheme(backgroundColor: Colors.grey[900]),
-      scaffoldBackgroundColor: Colors.grey[900],
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: Colors.blue,
-      ),
-    )
-        : ThemeData.light().copyWith(
-      primaryColor: Colors.blue,
-      appBarTheme: AppBarTheme(backgroundColor: Colors.blue),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: Colors.blue,
-      ),
+    // Apply appropriate theme based on _isDarkMode
+    Theme.of(context).copyWith(
+      colorScheme: _isDarkMode
+          ? ColorScheme.dark(primary: Colors.blue)
+          : ColorScheme.light(primary: Colors.blue),
     );
 
-    Map<String, List> categorizedTasks = {};
-    for (var category in categories) {
-      categorizedTasks[category] = toDoList.where((task) => task[2] == category).toList();
-    }
+    final filteredTasks = _selectedCategory == 'All'
+        ? toDoList
+        : toDoList.where((task) => task[2] == _selectedCategory).toList();
 
     return Theme(
-      data: themeData,
+      data: _isDarkMode ? _darkTheme : _lightTheme,
       child: Scaffold(
-        endDrawer: _buildDrawer(),
         appBar: AppBar(
-          title: const Text('Taskora'),
-          elevation: 0,
+          title: const Text("Taskora"),
           actions: [
+            // Hamburger menu on the right
             Builder(
               builder: (context) => IconButton(
                 icon: const Icon(Icons.menu),
                 onPressed: () => Scaffold.of(context).openEndDrawer(),
-                tooltip: 'Menu',
+                tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
               ),
             ),
           ],
+        ),
+        // Add the endDrawer for right-side hamburger menu
+        endDrawer: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(
+                  color: _isDarkMode ? Colors.grey[800] : Colors.blue,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Using our improved profile image widget
+                    _buildProfileImage(),
+                    const SizedBox(height: 10),
+                    Text(
+                      userName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.person),
+                title: const Text('Profile'),
+                onTap: () {
+                  Navigator.pop(context); // Close the drawer
+                  _navigateToProfile();
+                },
+              ),
+              // Add the new Study Timer option
+              ListTile(
+                leading: const Icon(Icons.timer),
+                title: const Text('Study Timer'),
+                onTap: () {
+                  Navigator.pop(context); // Close the drawer
+                  _navigateToStudyTimer();
+                },
+              ),
+              ListTile(
+                leading: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
+                title: Text(_isDarkMode ? 'Light Mode' : 'Dark Mode'),
+                onTap: () {
+                  _toggleTheme();
+                  Navigator.pop(context); // Close the drawer
+                },
+              ),
+              const Divider(),
+              // Updated Categories option to use the new page
+              ListTile(
+                leading: const Icon(Icons.category),
+                title: const Text('Categories'),
+                onTap: () {
+                  Navigator.pop(context); // Close the drawer
+                  _navigateToCategories(); // Use the new navigation method
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Settings'),
+                onTap: () {
+                  // Navigate to settings page
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: const Text('Help & Feedback'),
+                onTap: () {
+                  // Navigate to help page
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('About'),
+                onTap: () {
+                  // Show about dialog
+                  Navigator.pop(context);
+                  showAboutDialog(
+                    context: context,
+                    applicationName: 'Taskora',
+                    applicationVersion: '1.0.0',
+                    applicationLegalese: '© 2025 Taskora',
+                  );
+                },
+              ),
+            ],
+          ),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: createNewTask,
           child: const Icon(Icons.add),
         ),
-        body: _buildTaskView(categorizedTasks),
-      ),
-    );
-  }
-
-  Widget _buildDrawer() {
-    return Drawer(
-      child: Container(
-        color: _isDarkMode ? Colors.grey[850] : Colors.white,
-        child: ListView(
-          padding: EdgeInsets.zero,
+        body: Column(
           children: [
+            // Improved category selector with drag and drop
             Container(
-              padding: const EdgeInsets.only(top: 50, bottom: 20),
-              decoration: const BoxDecoration(color: Colors.blue),
+              padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+              decoration: BoxDecoration(
+                color: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: _navigateToProfile,
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child: ClipOval(
-                        child: profileImagePath != null
-                            ? Image.file(
-                          File(profileImagePath!),
-                          fit: BoxFit.cover,
-                        )
-                            : const Icon(
-                          Icons.person,
-                          size: 70,
-                          color: Colors.blue,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Category: ",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                    ),
+                      // Add a hint for users about reordering
+                      Text(
+                        "Long press & drag to reorder",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 15),
-                  Text(
-                    userName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Tap to view profile',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 14,
+                  const SizedBox(height: 8),
+                  // Implement ReorderableList for category chips
+                  SizedBox(
+                    height: 40, // Fixed height for the category row
+                    child: ReorderableListView(
+                      scrollDirection: Axis.horizontal,
+                      onReorder: _reorderCategories,
+                      proxyDecorator: (child, index, animation) {
+                        return AnimatedBuilder(
+                          animation: animation,
+                          builder: (BuildContext context, Widget? child) {
+                            final double animValue = Curves.easeInOut.transform(animation.value);
+                            final double elevation = lerpDouble(0, 6, animValue)!;
+                            return Material(
+                              elevation: elevation,
+                              color: Colors.transparent,
+                              child: child,
+                            );
+                          },
+                          child: child,
+                        );
+                      },
+                      children: categories.map((category) {
+                        final isSelected = _selectedCategory == category;
+                        return Padding(
+                          key: ValueKey(category),
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: FilterChip(
+                            label: Text(category),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedCategory = category;
+                              });
+                            },
+                            backgroundColor: _isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                            selectedColor: Colors.blue,
+                            checkmarkColor: Colors.white,
+                            labelStyle: TextStyle(
+                              color: isSelected ? Colors.white : (_isDarkMode ? Colors.white : Colors.black),
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            avatar: isSelected ? null : Icon(
+                              Icons.drag_indicator,
+                              size: 16,
+                              color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
                 ],
               ),
             ),
-            ListTile(
-              leading: Icon(
-                Icons.home,
-                color: _isDarkMode ? Colors.white : Colors.black,
-              ),
-              title: Text(
-                'Home',
-                style: TextStyle(
-                  color: _isDarkMode ? Colors.white : Colors.black,
+
+            Expanded(
+              child: filteredTasks.isEmpty
+                  ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.task_alt,
+                      size: 64,
+                      color: _isDarkMode ? Colors.grey[600] : Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      "No tasks available.",
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: createNewTask,
+                      icon: const Icon(Icons.add),
+                      label: const Text("Add your first task"),
+                    ),
+                  ],
                 ),
+              )
+                  : ListView.builder(
+                itemCount: filteredTasks.length,
+                itemBuilder: (context, index) {
+                  final task = filteredTasks[index];
+                  return ToDoTile(
+                    taskName: task[0],
+                    taskDescription: task[4],
+                    taskCompleted: task[1],
+                    priorityColor: Priority.fromString(task[3]).color,
+                    onChanged: (value) {
+                      setState(() {
+                        final originalIndex = toDoList.indexOf(task);
+                        toDoList[originalIndex][1] = value ?? false;
+                        _updateDatabase();
+                      });
+                    },
+                    deleteFunction: (context) {
+                      final originalIndex = toDoList.indexOf(task);
+                      deleteTask(originalIndex);
+                    },
+                    isDarkMode: _isDarkMode,
+                    onEdit: (newText, newDescription, newColor) {
+                      setState(() {
+                        final originalIndex = toDoList.indexOf(task);
+                        toDoList[originalIndex][0] = newText;
+                        toDoList[originalIndex][3] = Priority.values
+                            .firstWhere((p) => p.color == newColor)
+                            .name;
+                        toDoList[originalIndex][4] = newDescription;
+                        _updateDatabase();
+                      });
+                    },
+                  );
+                },
               ),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.timer,
-                color: _isDarkMode ? Colors.white : Colors.black,
-              ),
-              title: Text(
-                'Study Timer',
-                style: TextStyle(
-                  color: _isDarkMode ? Colors.white : Colors.black,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const StudyTimerPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                _isDarkMode ? Icons.light_mode : Icons.dark_mode,
-                color: _isDarkMode ? Colors.white : Colors.black,
-              ),
-              title: Text(
-                _isDarkMode ? 'Light Mode' : 'Dark Mode',
-                style: TextStyle(
-                  color: _isDarkMode ? Colors.white : Colors.black,
-                ),
-              ),
-              onTap: _toggleTheme,
             ),
           ],
         ),
       ),
     );
   }
+
+  // Updated to use the new CategoryPage
+  void _showManageCategories() {
+    _navigateToCategories();
+  }
+}
+
+// Helper function for animation
+double? lerpDouble(double a, double b, double t) {
+  return a + (b - a) * t;
 }

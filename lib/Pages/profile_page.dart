@@ -1,499 +1,464 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-
-// This is the priority enum from home_page.dart
-// You can move this to a separate file to avoid duplication
-enum Priority {
-  low(color: Colors.green),
-  medium(color: Colors.orange),
-  high(color: Colors.red);
-
-  final Color color;
-  const Priority({required this.color});
-
-  String get displayName => name[0].toUpperCase() + name.substring(1);
-
-  static Priority fromString(String priorityString) {
-    return Priority.values.firstWhere(
-            (priority) => priority.name == priorityString,
-        orElse: () => Priority.low
-    );
-  }
-}
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart' as path_provider;
+import 'dart:math' as math;
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  final _nameController = TextEditingController();
   final _myBox = Hive.box('mybox');
+  final _formKey = GlobalKey<FormState>();
 
-  // User data
-  String userName = "User Name";
   String? profileImagePath;
   bool _isDarkMode = true;
+  bool _isTaskListExpanded = false;
+  List<dynamic> _allTasks = [];
 
-  // Task lists for different filters
-  List allTasks = [];
-  List completedTasks = [];
-  List pendingTasks = [];
-  List highPriorityTasks = [];
-  List recentlyCompletedTasks = [];
-  Map<String, List> tasksByCategory = {};
+  // Task statistics
+  int _completedTasks = 0;
+  int _pendingTasks = 0;
+  int _highPriorityTasks = 0;
+  int _lowPriorityTasks = 0;
 
-  // Currently selected filter
-  String currentFilter = "All Tasks";
+  // Category statistics
+  Map<String, int> _categoryStats = {};
 
   @override
   void initState() {
     super.initState();
-    _loadData();
     _loadUserData();
     _loadThemePreference();
+    _calculateTaskStats();
   }
 
-  // Load tasks from Hive
-  void _loadData() {
-    allTasks = _myBox.get("TODOLIST") ?? [];
-
-    // Filter tasks into different categories
-    completedTasks = allTasks.where((task) => task[1] == true).toList();
-    pendingTasks = allTasks.where((task) => task[1] == false).toList();
-    highPriorityTasks = allTasks.where((task) => task[3] == "high").toList();
-
-    // Get the 5 most recently completed tasks
-    // (This is an approximation as we don't store completion dates)
-    recentlyCompletedTasks = completedTasks.take(5).toList();
-
-    // Group tasks by category
-    tasksByCategory = {};
-    for (var task in allTasks) {
-      String category = task[2];
-      if (!tasksByCategory.containsKey(category)) {
-        tasksByCategory[category] = [];
-      }
-      tasksByCategory[category]!.add(task);
-    }
-  }
-
-  // Load user data from Hive
   void _loadUserData() {
-    final savedName = _myBox.get("USER_NAME");
-    final savedProfileImage = _myBox.get("PROFILE_IMAGE");
-
-    if (savedName != null) {
-      setState(() {
-        userName = savedName;
-      });
-    }
-
-    if (savedProfileImage != null) {
-      setState(() {
-        profileImagePath = savedProfileImage;
-      });
-    }
+    _nameController.text = _myBox.get("USERNAME") ?? "User";
+    profileImagePath = _myBox.get("PROFILE_IMAGE");
   }
 
-  // Load theme preference
   void _loadThemePreference() {
-    final savedTheme = _myBox.get("THEME_MODE");
-    if (savedTheme != null) {
-      setState(() {
-        _isDarkMode = savedTheme;
-      });
-    }
+    _isDarkMode = _myBox.get("THEME_MODE") ?? true;
   }
 
-  // Save user name
-  void _saveUserName(String name) {
-    _myBox.put("USER_NAME", name);
+  void _calculateTaskStats() {
+    final taskList = _myBox.get("TODOLIST") ?? [];
+    _allTasks = List.from(taskList); // Store all tasks
+
+    int completed = 0;
+    int pending = 0;
+    int highPriority = 0;
+    int lowPriority = 0;
+    Map<String, int> categoryMap = {};
+
+    for (var task in taskList) {
+      // Update completed/pending count
+      if (task[1] == true) {
+        completed++;
+      } else {
+        pending++;
+      }
+
+      // Update priority counts
+      if (task[3] == "high") {
+        highPriority++;
+      } else if (task[3] == "low") {
+        lowPriority++;
+      }
+
+      // Update category stats
+      String category = task[2] ?? "Uncategorized";
+      if (categoryMap.containsKey(category)) {
+        categoryMap[category] = categoryMap[category]! + 1;
+      } else {
+        categoryMap[category] = 1;
+      }
+    }
+
     setState(() {
-      userName = name;
+      _completedTasks = completed;
+      _pendingTasks = pending;
+      _highPriorityTasks = highPriority;
+      _lowPriorityTasks = lowPriority;
+      _categoryStats = categoryMap;
     });
   }
 
-  // Save profile image path
-  void _saveProfileImage(String path) {
-    _myBox.put("PROFILE_IMAGE", path);
+  void _saveProfile() {
+    if (_formKey.currentState?.validate() ?? false) {
+      _myBox.put("USERNAME", _nameController.text);
+      _myBox.put("PROFILE_IMAGE", profileImagePath);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 300,
+        maxHeight: 300,
+      );
+
+      if (image != null) {
+        final directory = await path_provider.getApplicationDocumentsDirectory();
+        final imagePath = '${directory.path}/profile_image.jpg';
+        await File(image.path).copy(imagePath);
+
+        setState(() {
+          profileImagePath = imagePath;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  void _toggleTaskList() {
     setState(() {
-      profileImagePath = path;
+      _isTaskListExpanded = !_isTaskListExpanded;
     });
   }
 
-  // Update profile picture
-  Future<void> _updateProfilePicture() async {
-    final ImagePicker _picker = ImagePicker();
-
-    // Show dialog to choose between camera and gallery
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text("Change Profile Picture"),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                GestureDetector(
-                  child: Text("Take a picture"),
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
-                    if (image != null) {
-                      _saveProfileImage(image.path);
-                    }
-                  },
-                ),
-                Padding(padding: EdgeInsets.all(8.0)),
-                GestureDetector(
-                  child: Text("Select from gallery"),
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-                    if (image != null) {
-                      _saveProfileImage(image.path);
-                    }
-                  },
-                ),
-                Padding(padding: EdgeInsets.all(8.0)),
-                if (profileImagePath != null)
-                  GestureDetector(
-                    child: Text("Remove photo", style: TextStyle(color: Colors.red)),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      setState(() {
-                        profileImagePath = null;
-                        _myBox.delete("PROFILE_IMAGE");
-                      });
-                    },
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // Edit user name
-  void _editUserName() {
-    final TextEditingController _controller = TextEditingController(text: userName);
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text("Edit Name"),
-          content: TextField(
-            controller: _controller,
-            decoration: InputDecoration(
-              hintText: "Enter your name",
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text("Cancel"),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text("Save"),
-              onPressed: () {
-                if (_controller.text.isNotEmpty) {
-                  _saveUserName(_controller.text);
-                }
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Get tasks based on current filter
-  List _getFilteredTasks() {
-    switch (currentFilter) {
-      case "Completed Tasks":
-        return completedTasks;
-      case "Pending Tasks":
-        return pendingTasks;
-      case "High Priority":
-        return highPriorityTasks;
-      case "Recently Completed":
-        return recentlyCompletedTasks;
-      default:
-      // Check if it's a category filter
-        for (var category in tasksByCategory.keys) {
-          if (currentFilter == category) {
-            return tasksByCategory[category]!;
-          }
-        }
-        return allTasks; // Default to all tasks
-    }
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Theme
-    final ThemeData themeData = _isDarkMode
-        ? ThemeData.dark().copyWith(
-      primaryColor: Colors.blue,
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.grey[900],
-      ),
-      scaffoldBackgroundColor: Colors.grey[900],
-    )
-        : ThemeData.light().copyWith(
-      primaryColor: Colors.blue,
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.blue,
-      ),
-    );
+    // Define text color based on dark mode
+    final textColor = _isDarkMode ? Colors.white : Colors.black87;
+    final secondaryTextColor = _isDarkMode ? Colors.grey[300]! : Colors.grey[700]!;
 
-    // Get tasks for the selected filter
-    final filteredTasks = _getFilteredTasks();
-
-    return Theme(
-      data: themeData,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text("Profile"),
-          elevation: 0,
-          actions: [
-            IconButton(
-              icon: Icon(Icons.edit),
-              onPressed: _editUserName,
-              tooltip: 'Edit Name',
-            ),
-          ],
-        ),
-        body: SingleChildScrollView(
+    return Scaffold(
+      backgroundColor: _isDarkMode ? Colors.grey[900] : Colors.grey[100],
+      appBar: AppBar(
+        title: const Text("Profile"),
+        backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.blue,
+        elevation: 0,
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Profile header
-              Container(
-                padding: EdgeInsets.all(20),
-                color: _isDarkMode ? Colors.grey[850] : Colors.blue,
-                child: Column(
-                  children: [
-                    // Profile picture
-                    GestureDetector(
-                      onTap: _updateProfilePicture,
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 3,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 8,
-                                  offset: Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: profileImagePath != null
-                                  ? Image.file(
-                                File(profileImagePath!),
-                                fit: BoxFit.cover,
-                              )
-                                  : Icon(
-                                Icons.person,
-                                size: 80,
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.blue,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
-                              ),
-                              child: Icon(
-                                Icons.camera_alt,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                        ],
+              // Profile Image
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                      border: Border.all(
+                        color: Colors.blue,
+                        width: 3,
                       ),
+                      image: profileImagePath != null
+                          ? DecorationImage(
+                        image: FileImage(File(profileImagePath!)),
+                        fit: BoxFit.cover,
+                      )
+                          : null,
                     ),
-                    SizedBox(height: 15),
-                    // User name
-                    Text(
-                      userName,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    child: profileImagePath == null
+                        ? Center(
+                      child: Icon(
+                        Icons.person,
+                        size: 60,
+                        color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
                       ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      "Tap on the photo to change",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
+                    )
+                        : null,
+                  ),
                 ),
               ),
 
-              // Task summary section
+              const SizedBox(height: 16),
+
+              // Username field
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: TextFormField(
+                  controller: _nameController,
+                  textAlign: TextAlign.center,
+                  decoration: InputDecoration(
+                    hintText: 'Your Name',
+                    hintStyle: TextStyle(
+                      color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                    border: UnderlineInputBorder(
+                      borderSide: BorderSide(
+                        color: _isDarkMode ? Colors.grey[600]! : Colors.grey[400]!,
+                      ),
+                    ),
+                  ),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: textColor, // Use dynamic text color
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your name';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // 2x2 Grid of statistics
+              GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  // Completed Tasks
+                  _buildStatCard(
+                    "Completed Tasks",
+                    _completedTasks.toString(),
+                    Icons.check_circle_outline,
+                    Colors.green,
+                    textColor,
+                  ),
+
+                  // High Priority Tasks
+                  _buildStatCard(
+                    "High Priority",
+                    _highPriorityTasks.toString(),
+                    Icons.priority_high,
+                    Colors.red,
+                    textColor,
+                  ),
+
+                  // Pending Tasks
+                  _buildStatCard(
+                    "Pending Tasks",
+                    _pendingTasks.toString(),
+                    Icons.pending_actions,
+                    Colors.orange,
+                    textColor,
+                  ),
+
+                  // Low Priority Tasks
+                  _buildStatCard(
+                    "Low Priority",
+                    _lowPriorityTasks.toString(),
+                    Icons.low_priority,
+                    Colors.blue,
+                    textColor,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Task Data Section
               Container(
-                padding: EdgeInsets.all(16),
-                margin: EdgeInsets.all(16),
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: _isDarkMode ? Colors.grey[800] : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
-                      blurRadius: 5,
-                      offset: Offset(0, 2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Task Summary",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 15),
-                    // Task stats grid
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildStatCard(
-                          "Total Tasks",
-                          allTasks.length.toString(),
-                          Icons.assignment,
-                          Colors.blue,
-                        ),
-                        SizedBox(width: 10),
-                        _buildStatCard(
-                          "Completed",
-                          completedTasks.length.toString(),
-                          Icons.check_circle,
-                          Colors.green,
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 10),
-                    Row(
-                      children: [
-                        _buildStatCard(
-                          "Pending",
-                          pendingTasks.length.toString(),
-                          Icons.pending_actions,
-                          Colors.orange,
-                        ),
-                        SizedBox(width: 10),
-                        _buildStatCard(
-                          "High Priority",
-                          highPriorityTasks.length.toString(),
-                          Icons.priority_high,
-                          Colors.red,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Filter section
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Task Filters",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.left,
-                    ),
-                    SizedBox(height: 10),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildFilterChip("All Tasks"),
-                          _buildFilterChip("Completed Tasks"),
-                          _buildFilterChip("Pending Tasks"),
-                          _buildFilterChip("High Priority"),
-                          _buildFilterChip("Recently Completed"),
-                          ...tasksByCategory.keys.map((category) => _buildFilterChip(category)).toList(),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Task list
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "$currentFilter (${filteredTasks.length})",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    filteredTasks.isEmpty
-                        ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Text(
-                          "No tasks found",
+                        Text(
+                          "Task Summary",
                           style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 16,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: textColor, // Use dynamic text color
                           ),
                         ),
+                        // View Tasks Button
+                        TextButton.icon(
+                          onPressed: _toggleTaskList,
+                          icon: Icon(
+                            _isTaskListExpanded ? Icons.expand_less : Icons.expand_more,
+                            color: Colors.blue,
+                          ),
+                          label: Text(
+                            _isTaskListExpanded ? "Hide Tasks" : "View Tasks",
+                            style: const TextStyle(
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Expandable Task List
+                    if (_isTaskListExpanded) ...[
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Your Tasks",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: textColor, // Use dynamic text color
+                        ),
                       ),
-                    )
-                        : ListView.builder(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      itemCount: filteredTasks.length,
-                      itemBuilder: (context, index) {
-                        return _buildTaskItem(filteredTasks[index]);
-                      },
+                      const SizedBox(height: 8),
+                      _buildTaskList(textColor, secondaryTextColor),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // Progress bar for completed vs total
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Task Completion",
+                              style: TextStyle(
+                                color: textColor, // Use dynamic text color
+                              ),
+                            ),
+                            Text(
+                              "${_completedTasks}/${_completedTasks + _pendingTasks} tasks",
+                              style: TextStyle(
+                                color: secondaryTextColor, // Use dynamic secondary text color
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: (_completedTasks + _pendingTasks) > 0
+                                ? _completedTasks / (_completedTasks + _pendingTasks)
+                                : 0.0,
+                            minHeight: 10,
+                            backgroundColor: _isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Category breakdown
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Category Breakdown",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: textColor, // Use dynamic text color
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ..._buildCategoryList(textColor, secondaryTextColor),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Task completion by status
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildCompletionPieChart(),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLegendItem("Completed", Colors.green, textColor),
+                              const SizedBox(height: 8),
+                              _buildLegendItem("Pending", Colors.orange, textColor),
+                              const SizedBox(height: 16),
+                              Text(
+                                "Completion Rate",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor, // Use dynamic text color
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                (_completedTasks + _pendingTasks) > 0
+                                    ? "${((_completedTasks / (_completedTasks + _pendingTasks)) * 100).toStringAsFixed(1)}%"
+                                    : "0%",
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Save Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saveProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    "Save Profile",
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
               ),
             ],
@@ -503,104 +468,357 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Build a stat card
-  Widget _buildStatCard(String title, String count, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.all(15),
-        decoration: BoxDecoration(
-          color: _isDarkMode ? Colors.grey[850] : Colors.grey[100],
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: color,
-              size: 28,
+  Widget _buildTaskList(Color textColor, Color secondaryTextColor) {
+    if (_allTasks.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16.0),
+        child: Center(
+          child: Text(
+            "No tasks found",
+            style: TextStyle(
+              color: secondaryTextColor,
+              fontStyle: FontStyle.italic,
             ),
-            SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _allTasks.length,
+      itemBuilder: (context, index) {
+        final task = _allTasks[index];
+        final taskName = task[0] as String;
+        final isCompleted = task[1] as bool;
+        final category = task[2] as String? ?? "Uncategorized";
+        final priority = task[3] as String? ?? "medium";
+
+        Color priorityColor;
+        switch (priority) {
+          case "high":
+            priorityColor = Colors.red;
+            break;
+          case "low":
+            priorityColor = Colors.blue;
+            break;
+          default:
+            priorityColor = Colors.orange;
+        }
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: Container(
+            padding: const EdgeInsets.all(12.0),
+            decoration: BoxDecoration(
+              color: _isDarkMode ? Colors.grey[700] : Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isCompleted ? Colors.green : priorityColor,
+                width: 1,
+              ),
+            ),
+            child: Row(
               children: [
-                Text(
-                  count,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                // Status indicator
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: isCompleted ? Colors.green : Colors.transparent,
+                    border: Border.all(
+                      color: isCompleted ? Colors.green : Colors.grey,
+                      width: 2,
+                    ),
+                    shape: BoxShape.circle,
                   ),
+                  child: isCompleted
+                      ? const Icon(
+                    Icons.check,
+                    size: 12,
+                    color: Colors.white,
+                  )
+                      : null,
                 ),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                const SizedBox(width: 12),
+                // Task details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        taskName,
+                        style: TextStyle(
+                          decoration: isCompleted ? TextDecoration.lineThrough : null,
+                          color: isCompleted
+                              ? secondaryTextColor
+                              : textColor, // Use dynamic text colors
+                          fontWeight: isCompleted ? FontWeight.normal : FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          // Category chip
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _isDarkMode
+                                  ? Colors.blue.withOpacity(0.2)
+                                  : Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              category,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Priority indicator
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: priorityColor.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              priority.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: priorityColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Build a filter chip
-  Widget _buildFilterChip(String label) {
-    final isSelected = currentFilter == label;
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: FilterChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (bool selected) {
-          setState(() {
-            currentFilter = label;
-          });
-        },
-        backgroundColor: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
-        selectedColor: Colors.blue,
-        checkmarkColor: Colors.white,
-        labelStyle: TextStyle(
-          color: isSelected ? Colors.white : _isDarkMode ? Colors.white : Colors.black,
-        ),
-      ),
-    );
-  }
-
-  // Build a task item
-  Widget _buildTaskItem(List task) {
-    final String taskName = task[0];
-    final bool isCompleted = task[1];
-    final String category = task[2];
-    final String priorityString = task[3];
-
-    final Priority priority = Priority.fromString(priorityString);
-
-    return Card(
-      margin: EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: priority.color,
           ),
-        ),
-        title: Text(
-          taskName,
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _isDarkMode ? Colors.grey[800] : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 32,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: textColor, // Use dynamic text color
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildCategoryList(Color textColor, Color secondaryTextColor) {
+    if (_categoryStats.isEmpty) {
+      return [
+        Text(
+          "No categories found",
           style: TextStyle(
-            decoration: isCompleted ? TextDecoration.lineThrough : null,
-            color: isCompleted ? Colors.grey : null,
+            color: secondaryTextColor,
+            fontStyle: FontStyle.italic,
           ),
         ),
-        subtitle: Text("Category: $category"),
-        trailing: isCompleted
-            ? Icon(Icons.check_circle, color: Colors.green)
-            : Icon(Icons.circle_outlined),
+      ];
+    }
+
+    List<Widget> categoryWidgets = [];
+
+    // Sort categories by count (descending)
+    var sortedCategories = _categoryStats.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    for (var entry in sortedCategories) {
+      categoryWidgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  entry.key,
+                  style: TextStyle(
+                    color: textColor, // Use dynamic text color
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8.0,
+                  vertical: 4.0,
+                ),
+                decoration: BoxDecoration(
+                  color: _isDarkMode ? Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  "tasks",
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return categoryWidgets;
+  }
+
+  Widget _buildCompletionPieChart() {
+    return SizedBox(
+      height: 100,
+      width: 100,
+      child: CustomPaint(
+        painter: PieChartPainter(
+          completedPercentage: (_completedTasks + _pendingTasks) > 0
+              ? _completedTasks / (_completedTasks + _pendingTasks)
+              : 0.0,
+          completedColor: Colors.green,
+          pendingColor: Colors.orange,
+          isDarkMode: _isDarkMode,
+        ),
       ),
     );
+  }
+
+  Widget _buildLegendItem(String label, Color color, Color textColor) {
+    return Row(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: textColor, // Use dynamic text color
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Custom painter for the pie chart
+class PieChartPainter extends CustomPainter {
+  final double completedPercentage;
+  final Color completedColor;
+  final Color pendingColor;
+  final bool isDarkMode;
+
+  PieChartPainter({
+    required this.completedPercentage,
+    required this.completedColor,
+    required this.pendingColor,
+    required this.isDarkMode,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2;
+
+    // Background circle (pending tasks)
+    final pendingPaint = Paint()
+      ..color = pendingColor
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(center, radius, pendingPaint);
+
+    // Foreground arc (completed tasks)
+    if (completedPercentage > 0) {
+      final completedPaint = Paint()
+        ..color = completedColor
+        ..style = PaintingStyle.fill;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -math.pi / 2, // Start from top (negative Y-axis)
+        2 * math.pi * completedPercentage, // Arc angle based on percentage
+        true, // Use center
+        completedPaint,
+      );
+    }
+
+    // Border
+    final borderPaint = Paint()
+      ..color = isDarkMode ? Colors.grey[700]! : Colors.grey[300]!
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawCircle(center, radius, borderPaint);
+
+    // Inner circle (for donut style)
+    final innerCirclePaint = Paint()
+      ..color = isDarkMode ? Colors.grey[800]! : Colors.white
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(center, radius * 0.6, innerCirclePaint);
+
+    // Inner circle border
+    canvas.drawCircle(center, radius * 0.6, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
   }
 }
