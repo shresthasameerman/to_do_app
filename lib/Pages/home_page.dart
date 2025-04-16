@@ -4,8 +4,21 @@ import 'package:to_do_app/Utils/dialog_box.dart';
 import 'package:to_do_app/Utils/todo_tile.dart';
 import 'package:to_do_app/Pages/profile_page.dart';
 import 'package:to_do_app/Pages/study_timer_page.dart';
-import 'package:to_do_app/Pages/CategoryPage.dart'; // Import the new category page
+import 'package:to_do_app/Pages/CategoryPage.dart';
+import 'package:to_do_app/Pages/login_page.dart';
+import 'package:to_do_app/Pages/Notes_Page.dart';
 import 'dart:io';
+
+class HiveKeys {
+  static const String todoList = "TODOLIST";
+  static const String username = "USERNAME";
+  static const String profileImage = "PROFILE_IMAGE";
+  static const String themeMode = "THEME_MODE";
+  static const String isLoggedIn = "IS_LOGGED_IN";
+  static const String categoriesOrder = "CATEGORIES_ORDER";
+  static const String rememberedEmail = "REMEMBERED_EMAIL";
+  static const String rememberedPassword = "REMEMBERED_PASSWORD";
+}
 
 enum Priority {
   low(color: Colors.green),
@@ -37,14 +50,13 @@ class _HomePageState extends State<HomePage> {
   final _myBox = Hive.box('mybox');
   List toDoList = [];
   String _selectedCategory = 'All';
-  // Changed from final List to a regular List to allow reordering
   List<String> categories = ['All', 'Work', 'Personal', 'Health', 'Study'];
 
   bool _isDarkMode = true;
+  bool _isSigningOut = false;
   String userName = "Guest";
   String? profileImagePath;
 
-  // Theme data for light and dark modes
   late ThemeData _lightTheme;
   late ThemeData _darkTheme;
 
@@ -55,11 +67,10 @@ class _HomePageState extends State<HomePage> {
     _initializeData();
     _loadUserData();
     _loadThemePreference();
-    _loadCategoryOrder(); // Load the saved category order
+    _loadCategoryOrder();
   }
 
   void _initThemes() {
-    // Light theme
     _lightTheme = ThemeData(
       brightness: Brightness.light,
       primarySwatch: Colors.blue,
@@ -78,7 +89,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
 
-    // Dark theme
     _darkTheme = ThemeData(
       brightness: Brightness.dark,
       primarySwatch: Colors.blue,
@@ -99,7 +109,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _initializeData() {
-    if (_myBox.get("TODOLIST") == null) {
+    if (_myBox.get(HiveKeys.todoList) == null) {
       _createInitialData();
     } else {
       _loadData();
@@ -111,38 +121,36 @@ class _HomePageState extends State<HomePage> {
       ["Learn Flutter", false, "Work", "low", "Start with Flutter basics."],
       ["Workout", false, "Health", "medium", "Morning exercise routine."],
     ];
-    _myBox.put("TODOLIST", toDoList);
+    _myBox.put(HiveKeys.todoList, toDoList);
   }
 
   void _loadData() {
-    toDoList = _myBox.get("TODOLIST");
+    toDoList = _myBox.get(HiveKeys.todoList);
   }
 
   void _updateDatabase() {
-    _myBox.put("TODOLIST", toDoList);
+    _myBox.put(HiveKeys.todoList, toDoList);
   }
 
   void _loadUserData() {
-    userName = _myBox.get("USERNAME") ?? "Guest";
-    profileImagePath = _myBox.get("PROFILE_IMAGE");
+    userName = _myBox.get(HiveKeys.username, defaultValue: "Guest");
+    profileImagePath = _myBox.get(HiveKeys.profileImage);
   }
 
   void _saveThemePreference() {
-    _myBox.put("THEME_MODE", _isDarkMode);
+    _myBox.put(HiveKeys.themeMode, _isDarkMode);
   }
 
   void _loadThemePreference() {
-    _isDarkMode = _myBox.get("THEME_MODE") ?? true;
+    _isDarkMode = _myBox.get(HiveKeys.themeMode, defaultValue: true);
   }
 
-  // Method to save the category order
   void _saveCategoryOrder() {
-    _myBox.put("CATEGORIES_ORDER", categories);
+    _myBox.put(HiveKeys.categoriesOrder, categories);
   }
 
-  // Method to load the saved category order
   void _loadCategoryOrder() {
-    final savedCategories = _myBox.get("CATEGORIES_ORDER");
+    final savedCategories = _myBox.get(HiveKeys.categoriesOrder);
     if (savedCategories != null) {
       setState(() {
         categories = List<String>.from(savedCategories);
@@ -150,7 +158,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Method to handle category reordering
   void _reorderCategories(int oldIndex, int newIndex) {
     setState(() {
       if (newIndex > oldIndex) {
@@ -167,7 +174,7 @@ class _HomePageState extends State<HomePage> {
       toDoList.add([
         _controller.text,
         false,
-        _selectedCategory == 'All' ? 'Work' : _selectedCategory, // Default to 'Work' if 'All' is selected
+        _selectedCategory == 'All' ? 'Work' : _selectedCategory,
         _selectedPriority.name,
         _descriptionController.text,
       ]);
@@ -196,7 +203,7 @@ class _HomePageState extends State<HomePage> {
           onCancel: () => Navigator.of(context).pop(),
           priorities: Priority.values.map((p) => p.name).toList(),
           selectedPriority: _selectedPriority.name,
-          categories: categories.where((c) => c != 'All').toList(), // Exclude 'All' from new task creation
+          categories: categories.where((c) => c != 'All').toList(),
           selectedCategory: _selectedCategory == 'All' ? 'Work' : _selectedCategory,
           onPriorityChanged: (String? newValue) {
             setState(() {
@@ -213,14 +220,44 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _signOut() async {
+    setState(() => _isSigningOut = true);
+
+    try {
+      // Clear all user data
+      await _myBox.put(HiveKeys.isLoggedIn, false);
+      await _myBox.put(HiveKeys.username, "Guest");
+      await _myBox.put(HiveKeys.profileImage, null);
+      await _myBox.delete(HiveKeys.rememberedEmail);
+      await _myBox.delete(HiveKeys.rememberedPassword);
+
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+              (Route<dynamic> route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error signing out: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSigningOut = false);
+    }
+  }
+
   void _navigateToProfile() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const ProfilePage()),
     ).then((_) {
-      setState(() {
-        _loadUserData();
-      });
+      if (mounted) {
+        setState(() {
+          _loadUserData(); // Reload user data to fetch the updated profile picture
+        });
+      }
     });
   }
 
@@ -231,20 +268,19 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // New method to navigate to the categories page
   void _navigateToCategories() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CategoryPage()),
     ).then((_) {
-      // Refresh the categories and selected category when returning
-      setState(() {
-        _loadCategoryOrder();
-        // Make sure the selected category still exists
-        if (!categories.contains(_selectedCategory)) {
-          _selectedCategory = 'All';
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _loadCategoryOrder();
+          if (!categories.contains(_selectedCategory)) {
+            _selectedCategory = 'All';
+          }
+        });
+      }
     });
   }
 
@@ -262,31 +298,25 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  // Widget to display profile image with proper handling for different sources
   Widget _buildProfileImage() {
     if (profileImagePath == null || profileImagePath!.isEmpty) {
-      // No image set, show default icon
-      return const CircleAvatar(
+      return CircleAvatar(
         radius: 36,
         backgroundColor: Colors.blue,
         child: Icon(Icons.person, size: 40, color: Colors.white),
       );
     }
 
-    // Check if the path is a file path or an asset path
     if (profileImagePath!.startsWith('assets/')) {
-      // Asset image
       return CircleAvatar(
         radius: 36,
         backgroundColor: Colors.white24,
         backgroundImage: AssetImage(profileImagePath!),
       );
     } else {
-      // File image (from camera or gallery)
       final file = File(profileImagePath!);
       if (!file.existsSync()) {
-        // File doesn't exist, show default icon
-        return const CircleAvatar(
+        return CircleAvatar(
           radius: 36,
           backgroundColor: Colors.blue,
           child: Icon(Icons.person, size: 40, color: Colors.white),
@@ -303,13 +333,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Apply appropriate theme based on _isDarkMode
-    Theme.of(context).copyWith(
-      colorScheme: _isDarkMode
-          ? ColorScheme.dark(primary: Colors.blue)
-          : ColorScheme.light(primary: Colors.blue),
-    );
-
     final filteredTasks = _selectedCategory == 'All'
         ? toDoList
         : toDoList.where((task) => task[2] == _selectedCategory).toList();
@@ -320,7 +343,6 @@ class _HomePageState extends State<HomePage> {
         appBar: AppBar(
           title: const Text("Taskora"),
           actions: [
-            // Hamburger menu on the right
             Builder(
               builder: (context) => IconButton(
                 icon: const Icon(Icons.menu),
@@ -330,7 +352,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-        // Add the endDrawer for right-side hamburger menu
         endDrawer: Drawer(
           child: ListView(
             padding: EdgeInsets.zero,
@@ -342,7 +363,6 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Using our improved profile image widget
                     _buildProfileImage(),
                     const SizedBox(height: 10),
                     Text(
@@ -357,20 +377,46 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               ListTile(
+                leading: const Icon(Icons.home),
+                title: const Text('Home'),
+                onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.person),
                 title: const Text('Profile'),
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
+                  Navigator.pop(context);
                   _navigateToProfile();
                 },
               ),
-              // Add the new Study Timer option
+              // Add this new ListTile for Notes
+              ListTile(
+                leading: const Icon(Icons.note),
+                title: const Text('Notes'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const NotesPage()),
+                  );
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.timer),
                 title: const Text('Study Timer'),
                 onTap: () {
-                  Navigator.pop(context); // Close the drawer
+                  Navigator.pop(context);
                   _navigateToStudyTimer();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.category),
+                title: const Text('Categories'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _navigateToCategories();
                 },
               ),
               ListTile(
@@ -378,24 +424,14 @@ class _HomePageState extends State<HomePage> {
                 title: Text(_isDarkMode ? 'Light Mode' : 'Dark Mode'),
                 onTap: () {
                   _toggleTheme();
-                  Navigator.pop(context); // Close the drawer
+                  Navigator.pop(context);
                 },
               ),
               const Divider(),
-              // Updated Categories option to use the new page
-              ListTile(
-                leading: const Icon(Icons.category),
-                title: const Text('Categories'),
-                onTap: () {
-                  Navigator.pop(context); // Close the drawer
-                  _navigateToCategories(); // Use the new navigation method
-                },
-              ),
               ListTile(
                 leading: const Icon(Icons.settings),
                 title: const Text('Settings'),
                 onTap: () {
-                  // Navigate to settings page
                   Navigator.pop(context);
                 },
               ),
@@ -403,7 +439,6 @@ class _HomePageState extends State<HomePage> {
                 leading: const Icon(Icons.help_outline),
                 title: const Text('Help & Feedback'),
                 onTap: () {
-                  // Navigate to help page
                   Navigator.pop(context);
                 },
               ),
@@ -412,7 +447,6 @@ class _HomePageState extends State<HomePage> {
                 leading: const Icon(Icons.info_outline),
                 title: const Text('About'),
                 onTap: () {
-                  // Show about dialog
                   Navigator.pop(context);
                   showAboutDialog(
                     context: context,
@@ -421,6 +455,18 @@ class _HomePageState extends State<HomePage> {
                     applicationLegalese: '© 2025 Taskora',
                   );
                 },
+              ),
+              const Divider(),
+              ListTile(
+                leading: _isSigningOut
+                    ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                    : const Icon(Icons.logout),
+                title: const Text('Sign Out'),
+                onTap: _signOut,
               ),
             ],
           ),
@@ -431,7 +477,6 @@ class _HomePageState extends State<HomePage> {
         ),
         body: Column(
           children: [
-            // Improved category selector with drag and drop
             Container(
               padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
               decoration: BoxDecoration(
@@ -458,7 +503,6 @@ class _HomePageState extends State<HomePage> {
                           fontSize: 16,
                         ),
                       ),
-                      // Add a hint for users about reordering
                       Text(
                         "Long press & drag to reorder",
                         style: TextStyle(
@@ -470,9 +514,8 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // Implement ReorderableList for category chips
                   SizedBox(
-                    height: 40, // Fixed height for the category row
+                    height: 40,
                     child: ReorderableListView(
                       scrollDirection: Axis.horizontal,
                       onReorder: _reorderCategories,
@@ -524,7 +567,6 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-
             Expanded(
               child: filteredTasks.isEmpty
                   ? Center(
@@ -594,14 +636,8 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  // Updated to use the new CategoryPage
-  void _showManageCategories() {
-    _navigateToCategories();
-  }
 }
 
-// Helper function for animation
 double? lerpDouble(double a, double b, double t) {
   return a + (b - a) * t;
 }

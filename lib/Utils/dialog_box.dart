@@ -28,6 +28,9 @@ class DialogBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Listen to changes in the task name field
+    bool isTaskNameEmpty = controller.text.trim().isEmpty;
+
     return AlertDialog(
       title: const Text('Add New Task'),
       content: SingleChildScrollView(
@@ -36,7 +39,14 @@ class DialogBox extends StatelessWidget {
           children: [
             TextField(
               controller: controller,
-              decoration: const InputDecoration(labelText: 'Task Name'),
+              decoration: InputDecoration(
+                labelText: 'Task Name',
+                errorText: isTaskNameEmpty ? 'Task name is required' : null,
+              ),
+              onChanged: (value) {
+                // This will trigger a rebuild when the text changes
+                (context as Element).markNeedsBuild();
+              },
             ),
             const SizedBox(height: 10),
             TextField(
@@ -77,7 +87,7 @@ class DialogBox extends StatelessWidget {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: onSave,
+          onPressed: isTaskNameEmpty ? null : onSave, // Disable if empty
           child: const Text('Save'),
         ),
       ],

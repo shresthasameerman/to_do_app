@@ -337,7 +337,9 @@ class _LoginPageState extends State<LoginPage> {
                       prefixIcon: const Icon(Icons.lock),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _passwordVisible ? Icons.visibility_off : Icons.visibility,
+                          _passwordVisible
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                         ),
                         onPressed: () {
                           setState(() {
@@ -419,50 +421,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Social Login Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _socialButton(
-                        icon: Icons.g_mobiledata,
-                        color: Colors.red,
-                        onPressed: () {
-                          // Implement Google login
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Google login not implemented"),
-                            ),
-                          );
-                        },
-                      ),
-                      _socialButton(
-                        icon: Icons.facebook,
-                        color: Colors.blue[800]!,
-                        onPressed: () {
-                          // Implement Facebook login
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Facebook login not implemented"),
-                            ),
-                          );
-                        },
-                      ),
-                      _socialButton(
-                        icon: Icons.apple,
-                        color: _isDarkMode ? Colors.white : Colors.black,
-                        onPressed: () {
-                          // Implement Apple login
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Apple login not implemented"),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-
                   // Sign Up Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -493,8 +451,10 @@ class _LoginPageState extends State<LoginPage> {
                           _myBox.put("THEME_MODE", _isDarkMode);
                         });
                       },
-                      icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
-                      label: Text(_isDarkMode ? "Light Mode" : "Dark Mode"),
+                      icon: Icon(
+                          _isDarkMode ? Icons.light_mode : Icons.dark_mode),
+                      label:
+                      Text(_isDarkMode ? "Light Mode" : "Dark Mode"),
                     ),
                   ),
                 ],
@@ -505,7 +465,6 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
-
   Widget _socialButton({
     required IconData icon,
     required Color color,

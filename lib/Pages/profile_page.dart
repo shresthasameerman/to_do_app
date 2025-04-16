@@ -107,26 +107,218 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _pickImage() async {
+  // Show a bottom sheet with profile picture options
+  void _showProfileImageOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _isDarkMode ? Colors.grey[850] : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Profile Picture",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _isDarkMode ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Option 1: Take a new photo
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.blue.withOpacity(0.2),
+                    child: const Icon(Icons.camera_alt, color: Colors.blue),
+                  ),
+                  title: Text(
+                    "Take a photo",
+                    style: TextStyle(
+                      color: _isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+
+                // Option 2: Choose from gallery
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.green.withOpacity(0.2),
+                    child: const Icon(Icons.photo_library, color: Colors.green),
+                  ),
+                  title: Text(
+                    "Choose from gallery",
+                    style: TextStyle(
+                      color: _isDarkMode ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+
+                // Only show the remove option if there's an existing profile image
+                if (profileImagePath != null)
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.red.withOpacity(0.2),
+                      child: const Icon(Icons.delete, color: Colors.red),
+                    ),
+                    title: Text(
+                      "Remove photo",
+                      style: TextStyle(
+                        color: _isDarkMode ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _removeProfileImage();
+                    },
+                  ),
+
+                const SizedBox(height: 8),
+
+                // Cancel button
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    "Cancel",
+                    style: TextStyle(
+                      color: _isDarkMode ? Colors.grey[400] : Colors.grey[700],
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Remove the profile image
+  void _removeProfileImage() {
+    // Remove the file if it exists
+    if (profileImagePath != null) {
+      try {
+        File(profileImagePath!).delete();
+      } catch (e) {
+        debugPrint('Error deleting profile image: $e');
+      }
+    }
+
+    // Update state and show notification
+    setState(() {
+      profileImagePath = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Profile picture removed'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // Pick an image from camera or gallery
+  Future<void> _pickImage(ImageSource source) async {
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 300,
-        maxHeight: 300,
+        source: source,
+        maxWidth: 600, // Increased size for better quality
+        maxHeight: 600,
+        imageQuality: 85, // Adjust quality for better results
       );
 
       if (image != null) {
+        // Create a unique filename with timestamp to avoid overwriting
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
         final directory = await path_provider.getApplicationDocumentsDirectory();
-        final imagePath = '${directory.path}/profile_image.jpg';
+        final imagePath = '${directory.path}/profile_image_$timestamp.jpg';
+
+        // Copy the image to app storage
         await File(image.path).copy(imagePath);
+
+        // Delete the old profile image if exists
+        if (profileImagePath != null) {
+          try {
+            File(profileImagePath!).delete();
+          } catch (e) {
+            debugPrint('Error deleting old profile image: $e');
+          }
+        }
 
         setState(() {
           profileImagePath = imagePath;
         });
+
+        // Show confirmation
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile picture updated'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update profile picture: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Preview the profile image in full screen
+  void _previewProfileImage() {
+    if (profileImagePath != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(
+              backgroundColor: Colors.black,
+              iconTheme: const IconThemeData(color: Colors.white),
+              title: const Text('Profile Picture', style: TextStyle(color: Colors.white)),
+              actions: [
+                // Edit button in preview
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showProfileImageOptions();
+                  },
+                ),
+              ],
+            ),
+            body: Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 3.0,
+                child: Image.file(
+                  File(profileImagePath!),
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -161,37 +353,79 @@ class _ProfilePageState extends State<ProfilePage> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Profile Image
+              // Profile Image with improved UI
               Center(
-                child: GestureDetector(
-                  onTap: _pickImage,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
-                      border: Border.all(
-                        color: Colors.blue,
-                        width: 3,
+                child: Stack(
+                  children: [
+                    // Profile image with tap behavior
+                    GestureDetector(
+                      onTap: profileImagePath != null
+                          ? _previewProfileImage  // Preview if image exists
+                          : _showProfileImageOptions,  // Options if no image
+                      child: Hero(
+                        tag: 'profileImage',
+                        child: Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                            border: Border.all(
+                              color: Colors.blue,
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                            image: profileImagePath != null
+                                ? DecorationImage(
+                              image: FileImage(File(profileImagePath!)),
+                              fit: BoxFit.cover,
+                            )
+                                : null,
+                          ),
+                          child: profileImagePath == null
+                              ? Center(
+                            child: Icon(
+                              Icons.person,
+                              size: 60,
+                              color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                          )
+                              : null,
+                        ),
                       ),
-                      image: profileImagePath != null
-                          ? DecorationImage(
-                        image: FileImage(File(profileImagePath!)),
-                        fit: BoxFit.cover,
-                      )
-                          : null,
                     ),
-                    child: profileImagePath == null
-                        ? Center(
-                      child: Icon(
-                        Icons.person,
-                        size: 60,
-                        color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+
+                    // Edit button overlay
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: _showProfileImageOptions,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _isDarkMode ? Colors.grey[900]! : Colors.white,
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
                       ),
-                    )
-                        : null,
-                  ),
+                    ),
+                  ],
                 ),
               ),
 
@@ -228,6 +462,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
 
+              // Rest of your existing code remains the same...
               const SizedBox(height: 24),
 
               // 2x2 Grid of statistics
@@ -469,6 +704,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildTaskList(Color textColor, Color secondaryTextColor) {
+    // Existing method remains the same
     if (_allTasks.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -612,7 +848,9 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // Rest of the existing methods remain the same
   Widget _buildStatCard(String title, String value, IconData icon, Color color, Color textColor) {
+    // Your existing method implementation
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -658,6 +896,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   List<Widget> _buildCategoryList(Color textColor, Color secondaryTextColor) {
+    // Your existing method implementation
     if (_categoryStats.isEmpty) {
       return [
         Text(
@@ -699,9 +938,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   color: _isDarkMode ? Colors.blue.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  "tasks",
-                  style: TextStyle(
+                child: Text(
+                  "${entry.value} tasks",
+                  style: const TextStyle(
                     color: Colors.blue,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
@@ -718,6 +957,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildCompletionPieChart() {
+    // Your existing method implementation
     return SizedBox(
       height: 100,
       width: 100,
@@ -735,6 +975,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildLegendItem(String label, Color color, Color textColor) {
+    // Your existing method implementation
     return Row(
       children: [
         Container(
