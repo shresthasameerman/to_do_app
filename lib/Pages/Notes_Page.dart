@@ -25,7 +25,6 @@ class _NotesPageState extends State<NotesPage> {
     final savedNotes = _myBox.get("NOTES");
     if (savedNotes != null) {
       setState(() {
-        // Convert from dynamic map to Map<String, dynamic>
         notes = (savedNotes as List).map((item) =>
         Map<String, dynamic>.from(item as Map)).toList();
       });
@@ -89,6 +88,95 @@ class _NotesPageState extends State<NotesPage> {
     });
   }
 
+  void _showNoteDetails(int index) {
+    final note = notes[index];
+    final images = (note['images'] as List?)
+        ?.map((path) => File(path.toString()))
+        .toList() ?? [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return SingleChildScrollView(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (note['title'] != null && note['title'].isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      note['title'],
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                if (note['content'] != null && note['content'].isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      note['content'],
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                if (images.isNotEmpty)
+                  SizedBox(
+                    height: 200,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: images.length,
+                      itemBuilder: (context, imgIndex) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              images[imgIndex],
+                              width: 200,
+                              height: 200,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 200,
+                                  height: 200,
+                                  color: Colors.grey[200],
+                                  child: const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.grey,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,101 +207,120 @@ class _NotesPageState extends State<NotesPage> {
                 ?.map((path) => File(path.toString()))
                 .toList() ?? [];
 
-            return Card(
-              color: Colors.grey[800],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              margin: EdgeInsets.zero,
-              child: InkWell(
-                onTap: () => _editNote(index),
-                onLongPress: () => _showDeleteDialog(context, index),
-                borderRadius: BorderRadius.circular(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title row with delete button
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12, right: 4, top: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Calculate dynamic height based on content
+            final hasTitle = note['title'] != null && note['title'].isNotEmpty;
+            final hasContent = note['content'] != null && note['content'].isNotEmpty;
+            final hasImages = images.isNotEmpty;
+
+            // Base height
+            double height = 120;
+            if (hasTitle) height += 30;
+            if (hasContent) height += 60;
+            if (hasImages) height += 100;
+
+            return GestureDetector(
+              onTap: () => _showNoteDetails(index),
+              child: Card(
+                color: Colors.grey[800],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                margin: EdgeInsets.zero,
+                child: Container(
+                  height: height,
+                  padding: const EdgeInsets.all(12),
+                  child: Stack(
+                    children: [
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Title with flexible to prevent overflow
-                          Expanded(
-                            child: note['title'] != null && note['title'].isNotEmpty
-                                ? Text(
-                              note['title'],
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                          if (hasTitle)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Text(
+                                note['title'],
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                            )
-                                : const SizedBox.shrink(),
-                          ),
-                          // Delete button that doesn't disrupt layout
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.white70, size: 18),
-                            constraints: const BoxConstraints(
-                              minWidth: 36,
-                              minHeight: 36,
                             ),
-                            padding: EdgeInsets.zero,
-                            onPressed: () => _showDeleteDialog(context, index),
-                            tooltip: 'Delete note',
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Content padding
-                    if (note['content'] != null && note['content'].isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          note['content'],
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-
-                    // Images
-                    if (images.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: images
-                              .map(
-                                (image) => ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.file(
-                                image,
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 80,
-                                    height: 80,
-                                    color: Colors.grey[700],
-                                    child: const Icon(
-                                      Icons.broken_image,
-                                      color: Colors.white70,
+                          if (hasContent)
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Text(
+                                  note['content'],
+                                  style: const TextStyle(color: Colors.white),
+                                  maxLines: 4,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                          if (hasImages)
+                            SizedBox(
+                              height: 80,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: images.length > 2 ? 2 : images.length,
+                                itemBuilder: (context, imgIndex) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.file(
+                                        images[imgIndex],
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            width: 80,
+                                            height: 80,
+                                            color: Colors.grey[700],
+                                            child: const Icon(
+                                              Icons.broken_image,
+                                              color: Colors.white70,
+                                            ),
+                                          );
+                                        },
+                                      ),
                                     ),
                                   );
                                 },
                               ),
                             ),
-                          )
-                              .toList(),
+                        ],
+                      ),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, color: Colors.white70, size: 20),
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit'),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete', style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _editNote(index);
+                            } else if (value == 'delete') {
+                              _showDeleteDialog(context, index);
+                            }
+                          },
                         ),
                       ),
-                    // Add a small bottom padding if there are no images
-                    if (images.isEmpty)
-                      const SizedBox(height: 12),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );

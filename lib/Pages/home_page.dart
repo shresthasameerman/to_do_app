@@ -224,10 +224,9 @@ class _HomePageState extends State<HomePage> {
     setState(() => _isSigningOut = true);
 
     try {
-      // Clear all user data
+      // Clear user-specific data but retain profile picture
       await _myBox.put(HiveKeys.isLoggedIn, false);
       await _myBox.put(HiveKeys.username, "Guest");
-      await _myBox.put(HiveKeys.profileImage, null);
       await _myBox.delete(HiveKeys.rememberedEmail);
       await _myBox.delete(HiveKeys.rememberedPassword);
 
