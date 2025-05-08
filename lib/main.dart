@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:to_do_app/Pages/home_page.dart';
 import 'package:to_do_app/Pages/login_page.dart';
+import 'package:to_do_app/services/DatabaseService.dart';
+import 'package:to_do_app/services/notification_service.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,4 +62,27 @@ class _MyAppState extends State<MyApp> {
       home: isLoggedIn ? const HomePage() : const LoginPage(),
     );
   }
+
+  Future<void> main() async {
+    WidgetsFlutterBinding.ensureInitialized();
+
+    // Initialize database
+    final dbService = DatabaseService();
+    await dbService.database; // This creates/opens the database
+
+    // Initialize notifications
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+
+    runApp(const MyApp());
+  }
 }
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Taskora',
+      theme: ThemeData.light(),
+      darkTheme: ThemeData.dark(),
+      home: const HomePage(),
+    );
+  }

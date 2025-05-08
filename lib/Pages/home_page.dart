@@ -7,6 +7,8 @@ import 'package:to_do_app/Pages/study_timer_page.dart';
 import 'package:to_do_app/Pages/CategoryPage.dart';
 import 'package:to_do_app/Pages/login_page.dart';
 import 'package:to_do_app/Pages/Notes_Page.dart';
+import 'package:to_do_app/repositories/task_repository.dart';
+import 'package:to_do_app/repositories/auth_repository.dart';
 import 'dart:io';
 
 class HiveKeys {
