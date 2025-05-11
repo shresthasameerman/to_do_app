@@ -10,6 +10,7 @@
 - 📑 Take and save notes
 - 🌙 Light and Dark theme
 - 📱 No internet required (works offline)
+- Verification System
   
 ---
 #📂 Screenshots
@@ -59,6 +60,6 @@ This app is licensed under the **GNU General Public License v3.0**. See the [LIC
 ---
 
 ## Author:
-**Your Name**  
+**Sameer Man Shrestha**  
 📧 your.email@example.com  
-👨‍💻 GitHub: [yourusername](https://github.com/yourusername)
+👨‍💻 GitHub: [yourusername](https://github.com/shresthasameerman)
