@@ -120,6 +120,7 @@ class _NotesPageState extends State<NotesPage> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       builder: (context) {
         return SingleChildScrollView(
           padding: EdgeInsets.only(
@@ -135,8 +136,7 @@ class _NotesPageState extends State<NotesPage> {
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(
                       note['title'],
-                      style: const TextStyle(
-                        fontSize: 20,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -146,7 +146,7 @@ class _NotesPageState extends State<NotesPage> {
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
                       note['content'],
-                      style: const TextStyle(fontSize: 16),
+                      style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   ),
                 if (images.isNotEmpty)
@@ -171,10 +171,10 @@ class _NotesPageState extends State<NotesPage> {
                                   return Container(
                                     width: 200,
                                     height: 200,
-                                    color: Colors.grey[200],
-                                    child: const Icon(
+                                    color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                                    child: Icon(
                                       Icons.broken_image,
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.error,
                                     ),
                                   );
                                 },
@@ -185,10 +185,10 @@ class _NotesPageState extends State<NotesPage> {
                           return Container(
                             width: 200,
                             height: 200,
-                            color: Colors.grey[200],
-                            child: const Icon(
+                            color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                            child: Icon(
                               Icons.broken_image,
-                              color: Colors.grey,
+                              color: Theme.of(context).colorScheme.error,
                             ),
                           );
                         }
@@ -201,7 +201,10 @@ class _NotesPageState extends State<NotesPage> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Close'),
+                      child: Text(
+                        'Close',
+                        style: TextStyle(color: Theme.of(context).colorScheme.primary),
+                      ),
                     ),
                   ],
                 ),
@@ -219,16 +222,23 @@ class _NotesPageState extends State<NotesPage> {
       appBar: AppBar(
         title: const Text("Notes"),
         elevation: 0,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addNewNote,
-        child: const Icon(Icons.add),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        child: Icon(
+          Icons.add,
+          color: Theme.of(context).colorScheme.onPrimary,
+        ),
       ),
       body: notes.isEmpty
-          ? const Center(
+          ? Center(
         child: Text(
           "No notes yet. Tap + to add a new note.",
-          style: TextStyle(color: Colors.grey),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       )
           : Padding(
@@ -255,7 +265,7 @@ class _NotesPageState extends State<NotesPage> {
             return GestureDetector(
               onTap: () => _showNoteDetails(index),
               child: Card(
-                color: Colors.grey[800],
+                color: Theme.of(context).cardColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -273,10 +283,9 @@ class _NotesPageState extends State<NotesPage> {
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Text(
                                 note['title'],
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -288,7 +297,9 @@ class _NotesPageState extends State<NotesPage> {
                                 padding: const EdgeInsets.only(bottom: 8),
                                 child: Text(
                                   note['content'],
-                                  style: const TextStyle(color: Colors.white),
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
                                   maxLines: 4,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -316,10 +327,10 @@ class _NotesPageState extends State<NotesPage> {
                                             return Container(
                                               width: 80,
                                               height: 80,
-                                              color: Colors.grey[700],
-                                              child: const Icon(
+                                              color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                                              child: Icon(
                                                 Icons.broken_image,
-                                                color: Colors.white70,
+                                                color: Theme.of(context).colorScheme.error,
                                               ),
                                             );
                                           },
@@ -330,10 +341,10 @@ class _NotesPageState extends State<NotesPage> {
                                     return Container(
                                       width: 80,
                                       height: 80,
-                                      color: Colors.grey[700],
-                                      child: const Icon(
+                                      color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                                      child: Icon(
                                         Icons.broken_image,
-                                        color: Colors.white70,
+                                        color: Theme.of(context).colorScheme.error,
                                       ),
                                     );
                                   }
@@ -346,15 +357,25 @@ class _NotesPageState extends State<NotesPage> {
                         top: 0,
                         right: 0,
                         child: PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, color: Colors.white70, size: 20),
+                          icon: Icon(
+                            Icons.more_vert,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            size: 20,
+                          ),
                           itemBuilder: (context) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'edit',
-                              child: Text('Edit'),
+                              child: Text(
+                                'Edit',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                              ),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'delete',
-                              child: Text('Delete', style: TextStyle(color: Colors.red)),
+                              child: Text(
+                                'Delete',
+                                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                              ),
                             ),
                           ],
                           onSelected: (value) {
@@ -381,19 +402,31 @@ class _NotesPageState extends State<NotesPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Note'),
-        content: const Text('Are you sure you want to delete this note?'),
+        title: Text(
+          'Delete Note',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        content: Text(
+          'Are you sure you want to delete this note?',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
           ),
           TextButton(
             onPressed: () {
               _deleteNote(index);
               Navigator.pop(context);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ],
       ),
@@ -472,6 +505,9 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
             _validateFields();
           });
         },
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 5),
+        partialResults: true,
       );
       setState(() {
         _isListening = true;
@@ -483,6 +519,7 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
     await widget.speechToText.stop();
     setState(() {
       _isListening = false;
+      _validateFields();
     });
   }
 
@@ -500,7 +537,11 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
     final isFormValid = _titleError == null && _contentError == null;
 
     return AlertDialog(
-      title: const Text('Add Note'),
+      title: Text(
+        'Add Note',
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -510,21 +551,36 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
               decoration: InputDecoration(
                 labelText: 'Title',
                 errorText: _titleError,
+                labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                errorStyle: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             ),
             TextField(
               controller: _contentController,
               decoration: InputDecoration(
                 labelText: 'Description',
                 errorText: _contentError,
+                labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                errorStyle: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
               maxLines: 4,
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _pickImages,
-              icon: const Icon(Icons.image),
-              label: const Text('Add Images'),
+              icon: Icon(
+                Icons.image,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+              label: Text(
+                'Add Images',
+                style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
             ),
             if (_images.isNotEmpty)
               SizedBox(
@@ -551,28 +607,73 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
                       return Container(
                         width: 100,
                         height: 100,
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.broken_image),
+                        color: Theme.of(context).colorScheme.error.withOpacity(0.1),
+                        child: Icon(
+                          Icons.broken_image,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       );
                     }
                   },
                 ),
               ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: widget.speechInitialized
+            GestureDetector(
+              onTap: widget.speechInitialized
                   ? (_isListening ? _stopListening : _startListening)
                   : null,
-              icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
-              label: Text(_isListening ? 'Stop Listening' : 'Start Listening'),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _isListening
+                      ? Theme.of(context).colorScheme.primary.withOpacity(0.2)
+                      : Theme.of(context).colorScheme.surfaceVariant,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _isListening ? Icons.mic : Icons.mic_none,
+                      color: _isListening
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isListening ? 'Stop Listening' : 'Start Listening',
+                      style: TextStyle(
+                        color: _isListening
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
+            if (!widget.speechInitialized)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Speech recognition not available. Check microphone permissions.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          ),
         ),
         TextButton(
           onPressed: isFormValid
@@ -585,7 +686,14 @@ class _AddNoteDialogState extends State<AddNoteDialog> {
             Navigator.pop(context);
           }
               : null,
-          child: const Text('Save'),
+          child: Text(
+            'Save',
+            style: TextStyle(
+              color: isFormValid
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+            ),
+          ),
         ),
       ],
     );
