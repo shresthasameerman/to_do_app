@@ -9,6 +9,7 @@ import 'package:to_do_app/Pages/login_page.dart';
 import 'package:to_do_app/Pages/Notes_Page.dart';
 import 'dart:io';
 
+// Constants for Hive box keys
 class HiveKeys {
   static const String todoList = "TODOLIST";
   static const String username = "USERNAME";
@@ -20,10 +21,11 @@ class HiveKeys {
   static const String rememberedPassword = "REMEMBERED_PASSWORD";
 }
 
+// Task priority enum with associated colors
 enum Priority {
-  low(color: Colors.green),
-  medium(color: Colors.orange),
-  high(color: Colors.red);
+  low(color: Color(0xFF4CAF50)),      // Improved green shade
+  medium(color: Color(0xFFFFA726)),   // Improved orange shade
+  high(color: Color(0xFFE53935));      // Improved red shade
 
   final Color color;
   const Priority({required this.color});
@@ -43,9 +45,14 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+  // Controllers
   final _controller = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _scrollController = ScrollController();
+  late final AnimationController _fabAnimationController;
+
+  // Local state
   Priority _selectedPriority = Priority.low;
   final _myBox = Hive.box('mybox');
   List toDoList = [];
@@ -56,9 +63,11 @@ class _HomePageState extends State<HomePage> {
   bool _isSigningOut = false;
   String userName = "Guest";
   String? profileImagePath;
+  bool _isScrolled = false;
 
-  late ThemeData _lightTheme;
-  late ThemeData _darkTheme;
+  // Theme definitions
+  late final ThemeData _lightTheme;
+  late final ThemeData _darkTheme;
 
   @override
   void initState() {
@@ -68,42 +77,133 @@ class _HomePageState extends State<HomePage> {
     _loadUserData();
     _loadThemePreference();
     _loadCategoryOrder();
+
+    // Initialize animation controller for FAB
+    _fabAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    // Add scroll listener for app bar elevation
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final isScrolled = _scrollController.offset > 0;
+    if (isScrolled != _isScrolled) {
+      setState(() {
+        _isScrolled = isScrolled;
+      });
+    }
   }
 
   void _initThemes() {
+    // Light theme configuration
     _lightTheme = ThemeData(
-      brightness: Brightness.light,
-      primarySwatch: Colors.blue,
-      scaffoldBackgroundColor: Colors.white,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.blue,
+        brightness: Brightness.light,
+      ),
+      scaffoldBackgroundColor: Colors.grey[50],
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: const TextStyle(
+            color: Colors.black87,
+            fontSize: 22,
+            fontWeight: FontWeight.bold
+        ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        elevation: 4,
       ),
-      textTheme: const TextTheme(
-        bodyMedium: TextStyle(color: Colors.black87),
-        titleMedium: TextStyle(color: Colors.black87),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.grey[200],
+        selectedColor: Colors.blue,
+        labelStyle: const TextStyle(fontSize: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      cardTheme: CardTheme(
+        elevation: 2,
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      drawerTheme: DrawerThemeData(
+        backgroundColor: Colors.white,
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(16),
+            bottomRight: Radius.circular(16),
+          ),
+        ),
       ),
     );
 
+    // Dark theme configuration
     _darkTheme = ThemeData(
-      brightness: Brightness.dark,
-      primarySwatch: Colors.blue,
-      scaffoldBackgroundColor: Colors.grey[900],
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.blue,
+        brightness: Brightness.dark,
+      ),
+      scaffoldBackgroundColor: const Color(0xFF121212),
       appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF1E1E1E),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.bold
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: Colors.blue[700],
+        foregroundColor: Colors.white,
+        elevation: 4,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue[700],
+          foregroundColor: Colors.white,
+          elevation: 2,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+      chipTheme: ChipThemeData(
         backgroundColor: Colors.grey[800],
-        foregroundColor: Colors.white,
+        selectedColor: Colors.blue[700],
+        labelStyle: const TextStyle(fontSize: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+      cardTheme: CardTheme(
+        color: const Color(0xFF2A2A2A),
+        elevation: 2,
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      textTheme: const TextTheme(
-        bodyMedium: TextStyle(color: Colors.white),
-        titleMedium: TextStyle(color: Colors.white),
+      drawerTheme: DrawerThemeData(
+        backgroundColor: const Color(0xFF1E1E1E),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(16),
+            bottomRight: Radius.circular(16),
+          ),
+        ),
       ),
     );
   }
@@ -170,6 +270,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   void saveNewTask() {
+    // Validate input
+    if (_controller.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task name cannot be empty')),
+      );
+      return;
+    }
+
     setState(() {
       toDoList.add([
         _controller.text,
@@ -183,16 +291,58 @@ class _HomePageState extends State<HomePage> {
       _updateDatabase();
     });
     Navigator.of(context).pop();
+
+    // Show animation for new task confirmation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Task added successfully'),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'UNDO',
+          onPressed: () {
+            setState(() {
+              toDoList.removeLast();
+              _updateDatabase();
+            });
+          },
+        ),
+      ),
+    );
   }
 
   void deleteTask(int index) {
+    // Store task for undo functionality
+    final deletedTask = toDoList[index];
+
     setState(() {
       toDoList.removeAt(index);
       _updateDatabase();
     });
+
+    // Show undo option
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Task deleted'),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'UNDO',
+          onPressed: () {
+            setState(() {
+              toDoList.insert(index, deletedTask);
+              _updateDatabase();
+            });
+          },
+        ),
+      ),
+    );
   }
 
   void createNewTask() {
+    // Reset values for new task
+    _selectedPriority = Priority.low;
+    _controller.clear();
+    _descriptionController.clear();
+
     showDialog(
       context: context,
       builder: (context) {
@@ -239,7 +389,10 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error signing out: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error signing out: ${e.toString()}'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -290,16 +443,9 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
   Widget _buildProfileImage() {
     if (profileImagePath == null || profileImagePath!.isEmpty) {
-      return CircleAvatar(
+      return const CircleAvatar(
         radius: 36,
         backgroundColor: Colors.blue,
         child: Icon(Icons.person, size: 40, color: Colors.white),
@@ -315,7 +461,7 @@ class _HomePageState extends State<HomePage> {
     } else {
       final file = File(profileImagePath!);
       if (!file.existsSync()) {
-        return CircleAvatar(
+        return const CircleAvatar(
           radius: 36,
           backgroundColor: Colors.blue,
           child: Icon(Icons.person, size: 40, color: Colors.white),
@@ -331,9 +477,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    _descriptionController.dispose();
+    _scrollController.dispose();
+    _fabAnimationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final filteredTasks = _selectedCategory == 'All'
-        ? toDoList
+        ? List.from(toDoList)
         : toDoList.where((task) => task[2] == _selectedCategory).toList();
 
     return Theme(
@@ -341,7 +496,13 @@ class _HomePageState extends State<HomePage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Taskora"),
+          elevation: _isScrolled ? 4 : 0,
           actions: [
+            IconButton(
+              icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
+              onPressed: _toggleTheme,
+              tooltip: _isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+            ),
             Builder(
               builder: (context) => IconButton(
                 icon: const Icon(Icons.menu),
@@ -352,287 +513,391 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         endDrawer: Drawer(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: BoxDecoration(
-                  color: _isDarkMode ? Colors.grey[800] : Colors.blue,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProfileImage(),
-                    const SizedBox(height: 10),
-                    Text(
-                      userName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+          child: SafeArea(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: _isDarkMode ? const Color(0xFF1A1A1A) : Colors.blue,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
                     ),
-                  ],
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.home),
-                title: const Text('Home'),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.person),
-                title: const Text('Profile'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _navigateToProfile();
-                },
-              ),
-              // Add this new ListTile for Notes
-              ListTile(
-                leading: const Icon(Icons.note),
-                title: const Text('Notes'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const NotesPage()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.timer),
-                title: const Text('Study Timer'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _navigateToStudyTimer();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.category),
-                title: const Text('Categories'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _navigateToCategories();
-                },
-              ),
-              ListTile(
-                leading: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
-                title: Text(_isDarkMode ? 'Light Mode' : 'Dark Mode'),
-                onTap: () {
-                  _toggleTheme();
-                  Navigator.pop(context);
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.settings),
-                title: const Text('Settings'),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.help_outline),
-                title: const Text('Help & Feedback'),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: const Text('About'),
-                onTap: () {
-                  Navigator.pop(context);
-                  showAboutDialog(
-                    context: context,
-                    applicationName: 'Taskora',
-                    applicationVersion: '1.0.0',
-                    applicationLegalese: '© 2025 Taskora',
-                  );
-                },
-              ),
-              const Divider(),
-              ListTile(
-                leading: _isSigningOut
-                    ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-                    : const Icon(Icons.logout),
-                title: const Text('Sign Out'),
-                onTap: _signOut,
-              ),
-            ],
-          ),
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: createNewTask,
-          child: const Icon(Icons.add),
-        ),
-        body: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-              decoration: BoxDecoration(
-                color: _isDarkMode ? Colors.grey[800] : Colors.grey[200],
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 3,
-                    offset: const Offset(0, 2),
                   ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Category: ",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      Text(
-                        "Long press & drag to reorder",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                          fontStyle: FontStyle.italic,
-                        ),
+                      Row(
+                        children: [
+                          _buildProfileImage(),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  userName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  "Manage your tasks efficiently",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 40,
-                    child: ReorderableListView(
-                      scrollDirection: Axis.horizontal,
-                      onReorder: _reorderCategories,
-                      proxyDecorator: (child, index, animation) {
-                        return AnimatedBuilder(
-                          animation: animation,
-                          builder: (BuildContext context, Widget? child) {
-                            final double animValue = Curves.easeInOut.transform(animation.value);
-                            final double elevation = lerpDouble(0, 6, animValue)!;
-                            return Material(
-                              elevation: elevation,
-                              color: Colors.transparent,
-                              child: child,
-                            );
-                          },
-                          child: child,
-                        );
-                      },
-                      children: categories.map((category) {
-                        final isSelected = _selectedCategory == category;
-                        return Padding(
-                          key: ValueKey(category),
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: FilterChip(
-                            label: Text(category),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedCategory = category;
-                              });
-                            },
-                            backgroundColor: _isDarkMode ? Colors.grey[700] : Colors.grey[300],
-                            selectedColor: Colors.blue,
-                            checkmarkColor: Colors.white,
-                            labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : (_isDarkMode ? Colors.white : Colors.black),
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                            avatar: isSelected ? null : Icon(
-                              Icons.drag_indicator,
-                              size: 16,
-                              color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                _buildDrawerItem(
+                  icon: Icons.home,
+                  title: 'Home',
+                  onTap: () => Navigator.pop(context),
+                ),
+                _buildDrawerItem(
+                  icon: Icons.person,
+                  title: 'Profile',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _navigateToProfile();
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.note,
+                  title: 'Notes',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const NotesPage()),
+                    );
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.timer,
+                  title: 'Study Timer',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _navigateToStudyTimer();
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.category,
+                  title: 'Categories',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _navigateToCategories();
+                  },
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: Icons.settings,
+                  title: 'Settings',
+                  onTap: () {
+                    Navigator.pop(context);
+                    // Add settings navigation here
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.help_outline,
+                  title: 'Help & Feedback',
+                  onTap: () {
+                    Navigator.pop(context);
+                    // Add help navigation here
+                  },
+                ),
+                _buildDrawerItem(
+                  icon: Icons.info_outline,
+                  title: 'About',
+                  onTap: () {
+                    Navigator.pop(context);
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'Taskora',
+                      applicationVersion: '1.0.0',
+                      applicationLegalese: '© 2025 Taskora',
+                      applicationIcon: Image.asset(
+                        'assets/app_icon.png',
+                        width: 48,
+                        height: 48,
+                        errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.task_alt, size: 48, color: Colors.blue),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(),
+                _buildDrawerItem(
+                  icon: _isSigningOut
+                      ? null
+                      : Icons.logout,
+                  title: 'Sign Out',
+                  onTap: _isSigningOut ? null : _signOut,
+                  trailing: _isSigningOut
+                      ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : null,
+                ),
+              ],
             ),
+          ),
+        ),
+        floatingActionButton: AnimatedBuilder(
+          animation: _fabAnimationController,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: 1.0 + (_fabAnimationController.value * 0.1),
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  _fabAnimationController.forward().then((_) {
+                    _fabAnimationController.reverse();
+                  });
+                  createNewTask();
+                },
+                icon: const Icon(Icons.add),
+                label: const Text("New Task"),
+                elevation: 4,
+              ),
+            );
+          },
+        ),
+        body: Column(
+          children: [
+            _buildCategorySelector(),
             Expanded(
               child: filteredTasks.isEmpty
-                  ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.task_alt,
-                      size: 64,
-                      color: _isDarkMode ? Colors.grey[600] : Colors.grey[400],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "No tasks available.",
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: createNewTask,
-                      icon: const Icon(Icons.add),
-                      label: const Text("Add your first task"),
-                    ),
-                  ],
-                ),
-              )
-                  : ListView.builder(
-                itemCount: filteredTasks.length,
-                itemBuilder: (context, index) {
-                  final task = filteredTasks[index];
-                  return ToDoTile(
-                    taskName: task[0],
-                    taskDescription: task[4],
-                    taskCompleted: task[1],
-                    priorityColor: Priority.fromString(task[3]).color,
-                    onChanged: (value) {
-                      setState(() {
-                        final originalIndex = toDoList.indexOf(task);
-                        toDoList[originalIndex][1] = value ?? false;
-                        _updateDatabase();
-                      });
-                    },
-                    deleteFunction: (context) {
-                      final originalIndex = toDoList.indexOf(task);
-                      deleteTask(originalIndex);
-                    },
-                    isDarkMode: _isDarkMode,
-                    onEdit: (newText, newDescription, newColor) {
-                      setState(() {
-                        final originalIndex = toDoList.indexOf(task);
-                        toDoList[originalIndex][0] = newText;
-                        toDoList[originalIndex][3] = Priority.values
-                            .firstWhere((p) => p.color == newColor)
-                            .name;
-                        toDoList[originalIndex][4] = newDescription;
-                        _updateDatabase();
-                      });
-                    },
-                  );
-                },
-              ),
+                  ? _buildEmptyState()
+                  : _buildTaskList(filteredTasks),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDrawerItem({
+    required IconData? icon,
+    required String title,
+    required VoidCallback? onTap,
+    Widget? trailing,
+  }) {
+    return ListTile(
+      leading: icon != null
+          ? Icon(icon, color: _isDarkMode ? Colors.white70 : Colors.grey[800])
+          : const SizedBox(width: 24),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.w500,
+          color: _isDarkMode ? Colors.white : Colors.black87,
+        ),
+      ),
+      trailing: trailing,
+      onTap: onTap,
+      dense: false,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+    );
+  }
+
+  Widget _buildCategorySelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+      decoration: BoxDecoration(
+        color: _isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "My Categories",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: _isDarkMode ? Colors.white : Colors.black87,
+                ),
+              ),
+              Text(
+                "Long press & drag to reorder",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 40,
+            child: ReorderableListView(
+              scrollDirection: Axis.horizontal,
+              onReorder: _reorderCategories,
+              proxyDecorator: (child, index, animation) {
+                return AnimatedBuilder(
+                  animation: animation,
+                  builder: (BuildContext context, Widget? child) {
+                    final double animValue = Curves.easeInOut.transform(animation.value);
+                    final double elevation = lerpDouble(0, 6, animValue)!;
+                    return Material(
+                      elevation: elevation,
+                      color: Colors.transparent,
+                      child: child,
+                    );
+                  },
+                  child: child,
+                );
+              },
+              children: categories.map((category) {
+                final isSelected = _selectedCategory == category;
+                return Padding(
+                  key: ValueKey(category),
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: FilterChip(
+                    label: Text(category),
+                    selected: isSelected,
+                    showCheckmark: false,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedCategory = category;
+                      });
+                    },
+                    avatar: isSelected
+                        ? Icon(
+                      Icons.check_circle,
+                      size: 18,
+                      color: Colors.white,
+                    )
+                        : Icon(
+                      Icons.drag_indicator,
+                      size: 16,
+                      color: _isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: isSelected
+                          ? BorderSide.none
+                          : BorderSide(
+                        color: _isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.check_circle_outline,
+            size: 80,
+            color: _isDarkMode ? Colors.grey[600] : Colors.grey[400],
+          ),
+          const SizedBox(height: 24),
+          Text(
+            "No tasks in this category",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: _isDarkMode ? Colors.grey[400] : Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Add a new task to get started",
+            style: TextStyle(
+              fontSize: 16,
+              color: _isDarkMode ? Colors.grey[500] : Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: createNewTask,
+            icon: const Icon(Icons.add),
+            label: const Text("Add your first task"),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              textStyle: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskList(List filteredTasks) {
+    return ListView.builder(
+      controller: _scrollController,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 80), // Add space for FAB
+      itemCount: filteredTasks.length,
+      itemBuilder: (context, index) {
+        final task = filteredTasks[index];
+        final originalIndex = toDoList.indexOf(task);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: ToDoTile(
+            taskName: task[0],
+            taskDescription: task[4],
+            taskCompleted: task[1],
+            priorityColor: Priority.fromString(task[3]).color,
+            onChanged: (value) {
+              setState(() {
+                toDoList[originalIndex][1] = value ?? false;
+                _updateDatabase();
+              });
+            },
+            deleteFunction: (context) => deleteTask(originalIndex),
+            isDarkMode: _isDarkMode,
+            onEdit: (newText, newDescription, newColor) {
+              setState(() {
+                toDoList[originalIndex][0] = newText;
+                toDoList[originalIndex][3] = Priority.values
+                    .firstWhere((p) => p.color == newColor)
+                    .name;
+                toDoList[originalIndex][4] = newDescription;
+                _updateDatabase();
+              });
+            },
+          ),
+        );
+      },
     );
   }
 }
