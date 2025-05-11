@@ -7,6 +7,7 @@ import 'package:to_do_app/Pages/study_timer_page.dart';
 import 'package:to_do_app/Pages/CategoryPage.dart';
 import 'package:to_do_app/Pages/login_page.dart';
 import 'package:to_do_app/Pages/Notes_Page.dart';
+import 'package:to_do_app/Pages/notification_settings_page.dart'; // Added import for notification settings page
 import 'dart:io';
 
 // Constants for Hive box keys
@@ -436,6 +437,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
+  // New method to navigate to notification settings
+  void _navigateToNotificationSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const NotificationSettingsPage()),
+    );
+  }
+
   void _toggleTheme() {
     setState(() {
       _isDarkMode = !_isDarkMode;
@@ -498,6 +507,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           title: const Text("Taskora"),
           elevation: _isScrolled ? 4 : 0,
           actions: [
+            // Added notification icon in the app bar
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: _navigateToNotificationSettings,
+              tooltip: 'Notification Settings',
+            ),
             IconButton(
               icon: Icon(_isDarkMode ? Icons.light_mode : Icons.dark_mode),
               onPressed: _toggleTheme,
@@ -600,6 +615,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   onTap: () {
                     Navigator.pop(context);
                     _navigateToCategories();
+                  },
+                ),
+                // Added notification settings option in the drawer
+                _buildDrawerItem(
+                  icon: Icons.notifications,
+                  title: 'Notification Settings',
+                  onTap: () {
+                    Navigator.pop(context);
+                    _navigateToNotificationSettings();
                   },
                 ),
                 const Divider(),
