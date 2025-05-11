@@ -62,4 +62,4 @@ This app is licensed under the **GNU General Public License v3.0**. See the [LIC
 ## Author:
 **Sameer Man Shrestha**  
 📧 your.email@example.com  
-👨‍💻 GitHub: [yourusername](https://github.com/shresthasameerman)
+👨‍💻 GitHub: [Shresthasameerman](https://github.com/shresthasameerman)
